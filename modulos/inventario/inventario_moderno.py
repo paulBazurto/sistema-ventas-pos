@@ -96,7 +96,7 @@ class InventarioModerno(tk.Frame):
         
         # Frame de botones modernos
         buttons_frame = ctk.CTkFrame(self, corner_radius=15)
-        buttons_frame.place(x=10, y=350, width=280, height=250)
+        buttons_frame.place(x=10, y=350, width=290, height=270)
         
         buttons_title = ctk.CTkLabel(buttons_frame, text="⚙️ Opciones", 
                                     font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"))
@@ -107,7 +107,7 @@ class InventarioModerno(tk.Frame):
             buttons_frame, 
             text="➕ Agregar Producto", 
             command=self.agregar_articulo,
-            width=240,
+            width=100,
             height=40,
             corner_radius=10,
             font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
@@ -120,7 +120,7 @@ class InventarioModerno(tk.Frame):
             buttons_frame, 
             text="✏️ Editar Producto", 
             command=self.editar_articulo,
-            width=240,
+            width=220,
             height=40,
             corner_radius=10,
             font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
@@ -133,7 +133,7 @@ class InventarioModerno(tk.Frame):
             buttons_frame, 
             text="🏷️ Imprimir Etiqueta", 
             command=generar_qr_producto,
-            width=240,
+            width=220,
             height=40,
             corner_radius=10,
             font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
