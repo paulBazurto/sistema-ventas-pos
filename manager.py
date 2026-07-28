@@ -13,8 +13,10 @@ import os
 
 
 class Manager(Tk):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, usuario_actual=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.usuario_actual = usuario_actual  # Guardar usuario autenticado
+        
         self.title("🏪 Mi Tienda - Sistema de Ventas Moderno")
         self.geometry("1400x900+200+50")
         self.resizable(True, True)
@@ -34,7 +36,8 @@ class Manager(Tk):
         container.pack(side=TOP, fill=BOTH, expand=True)
         container.configure(width=1400, height=900)
         
-        self.container_frame = Container(container, self)
+        # Pasar el usuario al container
+        self.container_frame = Container(container, self, usuario_actual=self.usuario_actual)
         self.container_frame.pack(fill=BOTH, expand=True)
         
         # Iniciar en la sección de ventas
@@ -43,10 +46,6 @@ class Manager(Tk):
         
         # Configurar estilos modernos
         self.configurar_estilos_modernos()
-
-        # La base de datos YA se crea en main() ANTES del login.
-        # No es necesario volver a crearla aquí.
-        # crear_base_de_datos()  # <--- ELIMINADO (duplicado)
 
     def configurar_estilos_modernos(self):
         """Configurar todos los estilos modernos de la aplicación"""
@@ -97,18 +96,20 @@ class Manager(Tk):
 
 
 def main():
-    """Función principal que maneja el flujo de login y aplicación"""
-    # Crear la base de datos MySQL (solo una vez, antes del login)
+    # Crear la base de datos antes del login
     crear_base_de_datos()
     
-    # Mostrar login
-    if mostrar_login_simple():
+    # Mostrar login y obtener usuario autenticado
+    usuario = mostrar_login_simple()
+    
+    if usuario:
         # Si el login fue exitoso, abrir la aplicación principal
-        app = Manager()
+        app = Manager(usuario_actual=usuario)
         app.mainloop()
     else:
-        # Si se canceló el login, salir
+        # Si se canceló o falló el login, salir
         print("Login cancelado. Cerrando aplicación...")
+        sys.exit()
 
 
 if __name__ == "__main__":

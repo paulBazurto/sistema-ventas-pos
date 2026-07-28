@@ -322,7 +322,7 @@ def login_con_rostro(root, ventana_principal, callback_exito):
                                             if len(distances) > 0:
                                                 min_dist = np.min(distances)
                                                 print(f"🔍 Distancia mínima: {min_dist:.4f}")
-                                                if min_dist < 0.45:  # Umbral ajustado
+                                                if min_dist < 0.45:
                                                     best_idx = np.argmin(distances)
                                                     current_username = clases[best_idx]
                                                     autenticado = True
@@ -334,7 +334,6 @@ def login_con_rostro(root, ventana_principal, callback_exito):
                                                 else:
                                                     lbl_estado.configure(text="❌ Rostro no reconocido")
                                                     intentos_fallidos += 1
-                                                    # Si supera el máximo de intentos, cerrar
                                                     if intentos_fallidos >= MAX_INTENTOS:
                                                         cap.release()
                                                         ventana_camara.destroy()
@@ -557,10 +556,12 @@ def capturar_rostro_para_registro(root, username, password):
     ventana_camara.protocol("WM_DELETE_WINDOW", cerrar_camara)
     bucle_registro()
 
-# ================= VENTANA PRINCIPAL DE LOGIN =================
+# ================= VENTANA PRINCIPAL DE LOGIN (CON DEPURACIÓN) =================
 def mostrar_login_simple():
+    print("🔄 [mostrar_login_simple] Iniciando...")  # <-- DEPURACIÓN
     global root
     root = ctk.CTk()
+    print("✅ Ventana creada")  # <-- DEPURACIÓN
     root.title("🔐 Sistema de Punto de Venta - Login")
     root.geometry("500x800+400+50")
     root.configure(fg_color=estilos.COLORS['bg_primary'])
@@ -571,30 +572,35 @@ def mostrar_login_simple():
         icon_image = tk.PhotoImage(file=icon_path)
         root.iconphoto(True, icon_image)
         root._icon_image_ref = icon_image
-    except Exception:
-        pass
+        print("✅ Icono cargado")  # <-- DEPURACIÓN
+    except Exception as e:
+        print(f"⚠️ Error cargando icono: {e}")
 
     root.update_idletasks()
     x = (root.winfo_screenwidth() // 2) - (500 // 2)
     y = (root.winfo_screenheight() // 2) - (700 // 2)
     root.geometry(f"500x700+{x}+{y}")
 
-    login_exitoso = False
+    # Variable que almacenará el nombre del usuario autenticado
+    usuario_autenticado = None
+    print("✅ Variables inicializadas")  # <-- DEPURACIÓN
 
     def autenticar_facial_exitoso():
-        nonlocal login_exitoso
-        login_exitoso = True
+        nonlocal usuario_autenticado
+        print("🔐 [autenticar_facial_exitoso] Llamado")  # <-- DEPURACIÓN
+        usuario_autenticado = current_username  # variable global de login_con_rostro
+        print(f"👤 Usuario autenticado facialmente: {usuario_autenticado}")
         root.destroy()
 
     def intentar_login():
-        nonlocal login_exitoso
+        nonlocal usuario_autenticado
         usuario = usuario_entry.get().strip()
         password = password_entry.get().strip()
         if not usuario or not password:
             messagebox.showerror("❌ Error", "Por favor ingrese usuario y contraseña")
             return
         if verificar_login(usuario, password):
-            login_exitoso = True
+            usuario_autenticado = usuario
             messagebox.showinfo("✅ Bienvenido", f"¡Bienvenido {usuario}!")
             root.destroy()
         else:
@@ -610,13 +616,15 @@ def mostrar_login_simple():
         logo_label = ctk.CTkLabel(main_frame, text="", image=_logo_img)
         logo_label.pack(pady=(40, 20))
         root._logo_img_ref = _logo_img
-    except Exception:
+        print("✅ Logo cargado")  # <-- DEPURACIÓN
+    except Exception as e:
+        print(f"⚠️ Error cargando logo: {e}")
         logo_label = ctk.CTkLabel(main_frame, text="🏪", font=ctk.CTkFont(size=80))
         logo_label.pack(pady=(40, 20))
 
     title_label = ctk.CTkLabel(main_frame, text="Sistema de Punto de Venta", font=ctk.CTkFont(family="Segoe UI", size=24, weight="bold"), text_color=estilos.COLORS['primary'])
     title_label.pack(pady=(0, 10))
-   
+  
 
     form_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
     form_frame.pack(fill='x', padx=40, pady=20)
@@ -656,11 +664,14 @@ def mostrar_login_simple():
 
     root.bind('<Return>', lambda event: intentar_login())
     usuario_entry.focus()
+    print("🔄 [mostrar_login_simple] Entrando a mainloop...")  # <-- DEPURACIÓN
     root.mainloop()
-    return login_exitoso
+    print(f"🔄 [mostrar_login_simple] Salió de mainloop. usuario_autenticado={usuario_autenticado}")  # <-- DEPURACIÓN
+    return usuario_autenticado
 
 if __name__ == "__main__":
-    if mostrar_login_simple():
-        print("Login exitoso!")
+    usuario = mostrar_login_simple()
+    if usuario:
+        print(f"Login exitoso como: {usuario}")
     else:
         print("Login cancelado")
