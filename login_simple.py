@@ -33,6 +33,8 @@ cap = None
 lblVideo = None
 ventana_camara = None
 autenticado = False
+intentos_fallidos = 0
+MAX_INTENTOS = 30
 
 # ================= CARGAR IMÁGENES DE LA CARPETA SetUp =================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -150,15 +152,16 @@ def crear_usuario_y_rostro(username, password, frame_bgr, bbox=None):
         cursor.close()
         conn.close()
 
-# ================= LOGIN CON ROSTRO (CON ANIMACIONES Y UMBRAL) =================
+# ================= LOGIN CON ROSTRO (CON ANIMACIONES Y TIMEOUT) =================
 def login_con_rostro(root, ventana_principal, callback_exito):
-    global cap, lblVideo, ventana_camara, autenticado, current_username, step, conteo_parpadeos, parpadeo
+    global cap, lblVideo, ventana_camara, autenticado, current_username, step, conteo_parpadeos, parpadeo, intentos_fallidos
 
     autenticado = False
     step = 0
     conteo_parpadeos = 0
     parpadeo = False
     current_username = None
+    intentos_fallidos = 0
 
     FaceCode, clases = obtener_encodings_faciales()
     if not FaceCode:
@@ -175,6 +178,12 @@ def login_con_rostro(root, ventana_principal, callback_exito):
     lblVideo = Label(ventana_camara, bg='black')
     lblVideo.pack(expand=True, fill='both')
 
+    # Etiqueta de estado (feedback visual)
+    lbl_estado = ctk.CTkLabel(ventana_camara, text="🔍 Verificando...", 
+                              font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
+                              text_color="white", bg_color="black")
+    lbl_estado.place(x=300, y=550)
+
     cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
     cap.set(3, 1280)
     cap.set(4, 720)
@@ -189,7 +198,7 @@ def login_con_rostro(root, ventana_principal, callback_exito):
         ventana_camara.destroy()
 
     def bucle_login():
-        global cap, lblVideo, autenticado, current_username, step, conteo_parpadeos, parpadeo
+        global cap, lblVideo, autenticado, current_username, step, conteo_parpadeos, parpadeo, intentos_fallidos
 
         if autenticado:
             return
@@ -253,6 +262,7 @@ def login_con_rostro(root, ventana_principal, callback_exito):
                                 if xi < 0: xi = 0
                                 if yi < 0: yi = 0
 
+                                # ---- PASOS DE LIVENESS ----
                                 if step == 0:
                                     cv2.rectangle(frame, (xi, yi, an, al), (255, 0, 255), 2)
                                     if img_step0 is not None:
@@ -296,32 +306,42 @@ def login_con_rostro(root, ventana_principal, callback_exito):
                                     cv2.putText(frame, 'Verificando identidad...', (450, 680),
                                                 cv2.FONT_HERSHEY_COMPLEX, 0.8, (0, 255, 0), 2)
 
-                                    # Reconocimiento facial con umbral explícito
-                                    frame_fr = cv2.resize(frame_copy, (0,0), None, 0.5, 0.5)
+                                    # ---- RECONOCIMIENTO FACIAL ----
+                                    frame_fr = cv2.resize(frame_copy, (0,0), None, 0.25, 0.25)
                                     rgb_fr = cv2.cvtColor(frame_fr, cv2.COLOR_BGR2RGB)
                                     faces_locs = fr.face_locations(rgb_fr)
                                     faces_encs = fr.face_encodings(rgb_fr, faces_locs)
 
-                                    for face_enc in faces_encs:
-                                        if not FaceCode:
-                                            break
-                                        # Calcular distancias
-                                        distances = fr.face_distance(FaceCode, face_enc)
-                                        if len(distances) > 0:
-                                            best_idx = np.argmin(distances)
-                                            min_dist = distances[best_idx]
-                                            # Umbral para autenticación (0.45 es más estricto que el 0.6 por defecto)
-                                            # Ajusta según pruebas
-                                            if min_dist < 0.45:
-                                                current_username = clases[best_idx]
-                                                autenticado = True
-                                                cap.release()
-                                                ventana_camara.destroy()
-                                                messagebox.showinfo("✅ Bienvenido", f"¡Bienvenido {current_username}!")
-                                                callback_exito()
-                                                return
-                                            else:
-                                                print(f"⚠️ Distancia demasiado alta ({min_dist:.4f}) - no autentica")
+                                    if not faces_encs:
+                                        lbl_estado.configure(text="😐 No se detecta rostro, acércate")
+                                    else:
+                                        for face_enc in faces_encs:
+                                            if not FaceCode:
+                                                break
+                                            distances = fr.face_distance(FaceCode, face_enc)
+                                            if len(distances) > 0:
+                                                min_dist = np.min(distances)
+                                                print(f"🔍 Distancia mínima: {min_dist:.4f}")
+                                                if min_dist < 0.45:  # Umbral ajustado
+                                                    best_idx = np.argmin(distances)
+                                                    current_username = clases[best_idx]
+                                                    autenticado = True
+                                                    cap.release()
+                                                    ventana_camara.destroy()
+                                                    messagebox.showinfo("✅ Bienvenido", f"¡Bienvenido {current_username}!")
+                                                    callback_exito()
+                                                    return
+                                                else:
+                                                    lbl_estado.configure(text="❌ Rostro no reconocido")
+                                                    intentos_fallidos += 1
+                                                    # Si supera el máximo de intentos, cerrar
+                                                    if intentos_fallidos >= MAX_INTENTOS:
+                                                        cap.release()
+                                                        ventana_camara.destroy()
+                                                        messagebox.showerror("❌ Autenticación fallida", 
+                                                                            "No se pudo reconocer el rostro.\n"
+                                                                            "Asegúrese de estar registrado y de que la cámara enfoca correctamente.")
+                                                        return
 
         frame = cv2.resize(frame, (800, 600))
         im = Image.fromarray(frame)
