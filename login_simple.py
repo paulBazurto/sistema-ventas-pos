@@ -616,8 +616,7 @@ def mostrar_login_simple():
 
     title_label = ctk.CTkLabel(main_frame, text="Sistema de Punto de Venta", font=ctk.CTkFont(family="Segoe UI", size=24, weight="bold"), text_color=estilos.COLORS['primary'])
     title_label.pack(pady=(0, 10))
-    subtitle_label = ctk.CTkLabel(main_frame, text="Versión 2.0 Moderna", font=ctk.CTkFont(family="Segoe UI", size=14), text_color=estilos.COLORS['gray'])
-    subtitle_label.pack(pady=(0, 40))
+   
 
     form_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
     form_frame.pack(fill='x', padx=40, pady=20)
@@ -651,10 +650,6 @@ def mostrar_login_simple():
 
     info_frame = ctk.CTkFrame(main_frame, fg_color=estilos.COLORS['light'], corner_radius=10)
     info_frame.pack(fill='x', padx=40, pady=10)
-    info_title = ctk.CTkLabel(info_frame, text="ℹ️ Credenciales de Prueba", font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"), text_color=estilos.COLORS['info'])
-    info_title.pack(pady=(10, 5))
-    info_text = ctk.CTkLabel(info_frame, text="Usuario: admin\nContraseña: admin123", font=ctk.CTkFont(family="Segoe UI", size=11), text_color=estilos.COLORS['dark'])
-    info_text.pack(pady=(0, 10))
 
     footer_label = ctk.CTkLabel(main_frame, text="© 2024 Sistema POS Moderno", font=ctk.CTkFont(family="Segoe UI", size=10), text_color=estilos.COLORS['gray'])
     footer_label.pack(side='bottom', pady=20)
