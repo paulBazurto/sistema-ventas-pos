@@ -576,8 +576,8 @@ def mostrar_login_simple():
 
     root.update_idletasks()
     x = (root.winfo_screenwidth() // 2) - (500 // 2)
-    y = (root.winfo_screenheight() // 2) - (800 // 2)
-    root.geometry(f"500x800+{x}+{y}")
+    y = (root.winfo_screenheight() // 2) - (700 // 2)
+    root.geometry(f"500x700+{x}+{y}")
 
     login_exitoso = False
 
