@@ -164,6 +164,21 @@ def crear_base_de_datos():
                 FOREIGN KEY (venta_id) REFERENCES ventas(id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         """)
+        
+        
+
+        # 11. Rostros para reconocimiento facial
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS rostros (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                usuario_id INT NOT NULL,
+                encoding LONGBLOB NOT NULL,
+                imagen LONGBLOB NOT NULL,
+                fecha_captura DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+
 
         # ==================== DATOS POR DEFECTO ====================
 
