@@ -94,10 +94,11 @@ class PerfilModerno(tk.Frame):
         btn_delete = ctk.CTkButton(fields_frame, text="🗑️ Eliminar cuenta", command=self.eliminar_cuenta, width=200, height=40, fg_color=estilos.COLORS['danger'], hover_color="#dc3545")
         btn_delete.grid(row=2, column=2, padx=10, pady=10)
 
+        # Botón Cerrar Sesión
         btn_logout = ctk.CTkButton(
             fields_frame,
             text="🔌 Cerrar Sesión",
-            command=self.cerrar_sesion,
+            command=self.cerrar_sesion,  # llama al método con pregunta por defecto
             width=200,
             height=40,
             fg_color=estilos.COLORS['secondary'],
@@ -226,6 +227,7 @@ class PerfilModerno(tk.Frame):
         btn_guardar.pack(pady=20)
 
     def eliminar_cuenta(self):
+        """Elimina la cuenta del usuario actual (sin preguntar cerrar sesión)"""
         respuesta = messagebox.askyesno("⚠️ Confirmar eliminación", 
                                         f"¿Está seguro de que desea eliminar su cuenta '{self.usuario_actual}'?\n\n"
                                         "Esta acción es irreversible y eliminará todos sus datos asociados (incluyendo rostro).\n"
@@ -253,19 +255,22 @@ class PerfilModerno(tk.Frame):
             cursor.execute("DELETE FROM usuarios WHERE id = %s", (self.user_id,))
             conn.commit()
             messagebox.showinfo("🗑️ Cuenta eliminada", "Su cuenta ha sido eliminada correctamente.\nSe cerrará la sesión.")
-            self.cerrar_sesion()
+            # Cierra sesión SIN preguntar de nuevo
+            self.cerrar_sesion(preguntar=False)
         except Exception as e:
             messagebox.showerror("❌ Error", f"Error al eliminar cuenta: {e}")
         finally:
             cursor.close()
             conn.close()
 
-    # ==========  CERRAR SESIÓN ==========
-    def cerrar_sesion(self):
-        """Cierra la sesión y vuelve al login."""
-        if messagebox.askyesno("🔌 Cerrar Sesión", "¿Está seguro de que desea cerrar sesión?"):
-            print("🔵 [Perfil] Cerrando sesión...")
-            if hasattr(self.master, 'cerrar_sesion'):
-                self.master.cerrar_sesion()
-            else:
-                print("⚠️ [Perfil] El contenedor no tiene método cerrar_sesion")
+    # ========== MÉTODO CERRAR SESIÓN CON PARÁMETRO OPCIONAL ==========
+    def cerrar_sesion(self, preguntar=True):
+        """Cierra la sesión. Si preguntar=True, pide confirmación."""
+        if preguntar:
+            if not messagebox.askyesno("🔌 Cerrar Sesión", "¿Está seguro de que desea cerrar sesión?"):
+                return
+        print("🔵 [Perfil] Cerrando sesión...")
+        if hasattr(self.master, 'cerrar_sesion'):
+            self.master.cerrar_sesion()
+        else:
+            print("⚠️ [Perfil] El contenedor no tiene método cerrar_sesion")
