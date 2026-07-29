@@ -112,7 +112,7 @@ class PerfilModerno(tk.Frame):
         btn_delete.grid(row=2, column=2, padx=10, pady=10)
 
         # --- NUEVO BOTÓN CERRAR SESIÓN ---
-        btn_logout = ctk.CTkButton(fields_frame, text="🚪 Cerrar sesión", command=self.cerrar_sesion, width=200, height=40, fg_color=estilos.COLORS['secondary'], hover_color="#6c757d")
+        btn_logout = ctk.CTkButton(fields_frame, text="⏻ Cerrar sesión", command=self.cerrar_sesion, width=200, height=40, fg_color=estilos.COLORS['secondary'], hover_color="#6c757d")
         btn_logout.grid(row=3, column=2, padx=10, pady=10)
 
         # Espaciador
