@@ -26,8 +26,7 @@ class Container(tk.Frame):
         # Configurar el frame principal
         self.configure(bg=estilos.COLORS['bg_primary'])
         self.pack()
-        # Antes: self.place(x=0, y=0, width=1400, height=900)
-        # Ahora ocupa todo el espacio disponible del contenedor padre, sea cual sea su tamaño
+      
         self.place(x=0, y=0, relwidth=1.0, relheight=1.0)
         
         # Inicializar

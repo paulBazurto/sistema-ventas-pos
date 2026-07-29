@@ -15,7 +15,7 @@ import os
 class Manager(Tk):
     def __init__(self, usuario_actual=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.usuario_actual = usuario_actual  # Guardar usuario autenticado
+        self.usuario_actual = usuario_actual
         
         self.title("🏪 Mi Tienda - Sistema de Ventas Moderno")
         self.geometry("1400x900+200+50")
@@ -24,31 +24,25 @@ class Manager(Tk):
         
         self.configure(bg=estilos.COLORS['bg_primary'])
         
-        # Icono de la aplicación
         try:
             icon_path = resource_path("media/icons/mi_tienda.ico")
             self.iconbitmap(icon_path)
         except:
             pass
 
-        # Container principal
         container = Frame(self, bg=estilos.COLORS['bg_primary'])
         container.pack(side=TOP, fill=BOTH, expand=True)
         container.configure(width=1400, height=900)
         
-        # Pasar el usuario al container
         self.container_frame = Container(container, self, usuario_actual=self.usuario_actual)
         self.container_frame.pack(fill=BOTH, expand=True)
         
-        # Iniciar en la sección de ventas
         from modulos.ventas.ventas_moderna import VentasModerna as Ventas
         self.container_frame.show_frames(Ventas)
         
-        # Configurar estilos modernos
         self.configurar_estilos_modernos()
 
     def configurar_estilos_modernos(self):
-        """Configurar todos los estilos modernos de la aplicación"""
         try:
             from ttkthemes import ThemedStyle
             self.style = ThemedStyle(self)
@@ -96,20 +90,18 @@ class Manager(Tk):
 
 
 def main():
-    # Crear la base de datos antes del login
     crear_base_de_datos()
-    
-    # Mostrar login y obtener usuario autenticado
-    usuario = mostrar_login_simple()
-    
-    if usuario:
-        # Si el login fue exitoso, abrir la aplicación principal
-        app = Manager(usuario_actual=usuario)
-        app.mainloop()
-    else:
-        # Si se canceló o falló el login, salir
-        print("Login cancelado. Cerrando aplicación...")
-        sys.exit()
+    # Bucle principal para reiniciar el login después de cerrar sesión
+    while True:
+        usuario = mostrar_login_simple()
+        if usuario:
+            app = Manager(usuario_actual=usuario)
+            app.mainloop()
+            # Al salir del mainloop (por cerrar sesión), el bucle continúa
+            print("🔁 Sesión cerrada, volviendo al login...")
+        else:
+            print("Login cancelado. Cerrando aplicación...")
+            break
 
 
 if __name__ == "__main__":

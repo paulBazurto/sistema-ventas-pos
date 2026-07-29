@@ -111,8 +111,20 @@ class PerfilModerno(tk.Frame):
         btn_delete = ctk.CTkButton(fields_frame, text="🗑️ Eliminar cuenta", command=self.eliminar_cuenta, width=200, height=40, fg_color=estilos.COLORS['danger'], hover_color="#dc3545")
         btn_delete.grid(row=2, column=2, padx=10, pady=10)
 
+        # --- NUEVO BOTÓN CERRAR SESIÓN ---
+        btn_logout = ctk.CTkButton(fields_frame, text="🚪 Cerrar sesión", command=self.cerrar_sesion, width=200, height=40, fg_color=estilos.COLORS['secondary'], hover_color="#6c757d")
+        btn_logout.grid(row=3, column=2, padx=10, pady=10)
+
         # Espaciador
-        tk.Label(fields_frame, text="", bg=estilos.COLORS['white']).grid(row=1, column=0, columnspan=2)
+        tk.Label(fields_frame, text="", bg=estilos.COLORS['white']).grid(row=4, column=0, columnspan=2)
+
+    def cerrar_sesion(self):
+        """Cierra la sesión actual y vuelve a mostrar la ventana de login."""
+        respuesta = messagebox.askyesno("🚪 Cerrar sesión", "¿Está seguro de que desea cerrar sesión?")
+        if respuesta:
+            # Destruir la ventana principal (Manager)
+            root = self.winfo_toplevel()
+            root.destroy()
 
     def cargar_foto_rostro(self):
         """Carga la foto del rostro desde la tabla rostros si existe."""
