@@ -47,11 +47,12 @@ def load_image(name):
         print(f"⚠️ No se encontró {path}")
     return img
 
+# Solo las imágenes que realmente se usan
 img_check = load_image('check.png')
 img_step0 = load_image('Step0.png')
 img_step1 = load_image('Step1.png')
 img_step2 = load_image('Step2.png')
-img_liche = load_image('LivenessCheck.png')
+# img_liche ELIMINADA
 
 # ================= FUNCIONES DE BASE DE DATOS =================
 def verificar_login(usuario, password):
@@ -299,10 +300,7 @@ def login_con_rostro(root, ventana_principal, callback_exito):
 
                                 elif step == 1:
                                     cv2.rectangle(frame, (xi, yi, an, al), (0, 255, 0), 2)
-                                    if img_liche is not None:
-                                        h, w, _ = img_liche.shape
-                                        frame[50:50+h, 50:50+w] = img_liche
-
+                                    # Ya no mostramos LivenessCheck.png
                                     cv2.putText(frame, 'Verificando identidad...', (450, 680),
                                                 cv2.FONT_HERSHEY_COMPLEX, 0.8, (0, 255, 0), 2)
 
@@ -558,10 +556,10 @@ def capturar_rostro_para_registro(root, username, password):
 
 # ================= VENTANA PRINCIPAL DE LOGIN (CON DEPURACIÓN) =================
 def mostrar_login_simple():
-    print("🔄 [mostrar_login_simple] Iniciando...")  # <-- DEPURACIÓN
+    print("🔄 [mostrar_login_simple] Iniciando...")
     global root
     root = ctk.CTk()
-    print("✅ Ventana creada")  # <-- DEPURACIÓN
+    print("✅ Ventana creada")
     root.title("🔐 Sistema de Punto de Venta - Login")
     root.geometry("500x800+400+50")
     root.configure(fg_color=estilos.COLORS['bg_primary'])
@@ -572,7 +570,7 @@ def mostrar_login_simple():
         icon_image = tk.PhotoImage(file=icon_path)
         root.iconphoto(True, icon_image)
         root._icon_image_ref = icon_image
-        print("✅ Icono cargado")  # <-- DEPURACIÓN
+        print("✅ Icono cargado")
     except Exception as e:
         print(f"⚠️ Error cargando icono: {e}")
 
@@ -583,11 +581,11 @@ def mostrar_login_simple():
 
     # Variable que almacenará el nombre del usuario autenticado
     usuario_autenticado = None
-    print("✅ Variables inicializadas")  # <-- DEPURACIÓN
+    print("✅ Variables inicializadas")
 
     def autenticar_facial_exitoso():
         nonlocal usuario_autenticado
-        print("🔐 [autenticar_facial_exitoso] Llamado")  # <-- DEPURACIÓN
+        print("🔐 [autenticar_facial_exitoso] Llamado")
         usuario_autenticado = current_username  # variable global de login_con_rostro
         print(f"👤 Usuario autenticado facialmente: {usuario_autenticado}")
         root.destroy()
@@ -616,7 +614,7 @@ def mostrar_login_simple():
         logo_label = ctk.CTkLabel(main_frame, text="", image=_logo_img)
         logo_label.pack(pady=(40, 20))
         root._logo_img_ref = _logo_img
-        print("✅ Logo cargado")  # <-- DEPURACIÓN
+        print("✅ Logo cargado")
     except Exception as e:
         print(f"⚠️ Error cargando logo: {e}")
         logo_label = ctk.CTkLabel(main_frame, text="🏪", font=ctk.CTkFont(size=80))
@@ -664,9 +662,9 @@ def mostrar_login_simple():
 
     root.bind('<Return>', lambda event: intentar_login())
     usuario_entry.focus()
-    print("🔄 [mostrar_login_simple] Entrando a mainloop...")  # <-- DEPURACIÓN
+    print("🔄 [mostrar_login_simple] Entrando a mainloop...")
     root.mainloop()
-    print(f"🔄 [mostrar_login_simple] Salió de mainloop. usuario_autenticado={usuario_autenticado}")  # <-- DEPURACIÓN
+    print(f"🔄 [mostrar_login_simple] Salió de mainloop. usuario_autenticado={usuario_autenticado}")
     return usuario_autenticado
 
 if __name__ == "__main__":

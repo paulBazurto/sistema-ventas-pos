@@ -13,20 +13,15 @@ class PerfilModerno(tk.Frame):
         self.usuario_actual = usuario_actual
         self.user_id = None
         
-        # Obtener el ID del usuario a partir del nombre
         if self.usuario_actual:
             self.obtener_id_usuario()
         else:
-            # Fallback: si no se pasa usuario, intentar obtener el primero (admin)
             self.cargar_usuario_por_defecto()
         
-        # Crear la interfaz
         self.widgets()
-        # Cargar la foto del rostro si existe
         self.cargar_foto_rostro()
 
     def obtener_id_usuario(self):
-        """Obtiene el ID del usuario a partir del nombre de usuario."""
         conn = get_connection()
         if not conn:
             return
@@ -38,7 +33,6 @@ class PerfilModerno(tk.Frame):
                 self.user_id = row[0]
             else:
                 self.user_id = None
-                print(f"⚠️ Usuario '{self.usuario_actual}' no encontrado en la base de datos.")
         except Exception as e:
             print(f"Error obteniendo ID: {e}")
         finally:
@@ -46,7 +40,6 @@ class PerfilModerno(tk.Frame):
             conn.close()
 
     def cargar_usuario_por_defecto(self):
-        """Carga el primer usuario de la tabla (fallback)."""
         conn = get_connection()
         if not conn:
             self.usuario_actual = "admin"
@@ -70,64 +63,52 @@ class PerfilModerno(tk.Frame):
             conn.close()
 
     def widgets(self):
-        """Crea la interfaz de perfil."""
-        # Card principal
         card = ctk.CTkFrame(self, corner_radius=20, fg_color=estilos.COLORS['white'])
         card.pack(fill='both', expand=True, padx=40, pady=40)
 
-        # Título
         title_label = ctk.CTkLabel(card, text="👤 Mi Perfil", font=ctk.CTkFont(family="Segoe UI", size=28, weight="bold"), text_color=estilos.COLORS['primary'])
         title_label.pack(pady=(30, 10))
 
-        # Subtítulo con nombre de usuario
         self.subtitle_label = ctk.CTkLabel(card, text=f"Usuario: {self.usuario_actual}", font=ctk.CTkFont(family="Segoe UI", size=16), text_color=estilos.COLORS['gray'])
         self.subtitle_label.pack(pady=(0, 30))
 
-        # Frame para foto de perfil
         self.foto_frame = ctk.CTkFrame(card, fg_color="transparent", width=150, height=150)
         self.foto_frame.pack(pady=10)
         self.foto_label = ctk.CTkLabel(self.foto_frame, text="📷", font=ctk.CTkFont(size=60))
         self.foto_label.pack()
 
-        # Frame de campos
         fields_frame = ctk.CTkFrame(card, fg_color="transparent")
         fields_frame.pack(pady=20, padx=40, fill='x')
 
-        # Campo de nombre de usuario
         tk.Label(fields_frame, text="Nombre de usuario:", font=('Segoe UI', 12, 'bold'), bg=estilos.COLORS['white']).grid(row=0, column=0, sticky='w', pady=5)
         self.entry_username = ctk.CTkEntry(fields_frame, font=('Segoe UI', 12), width=300)
         self.entry_username.insert(0, self.usuario_actual)
         self.entry_username.grid(row=0, column=1, pady=5)
 
-        # Botón actualizar usuario
         btn_update_user = ctk.CTkButton(fields_frame, text="Cambiar nombre de usuario", command=self.cambiar_usuario, width=200, height=40, fg_color=estilos.COLORS['info'], hover_color="#0ea5e9")
         btn_update_user.grid(row=0, column=2, padx=10)
 
-        # Botón cambiar contraseña
         btn_change_pass = ctk.CTkButton(fields_frame, text="🔑 Cambiar contraseña", command=self.abrir_ventana_cambiar_password, width=200, height=40, fg_color=estilos.COLORS['warning'], hover_color="#d97706")
         btn_change_pass.grid(row=1, column=2, padx=10, pady=10)
 
-        # Botón eliminar cuenta
         btn_delete = ctk.CTkButton(fields_frame, text="🗑️ Eliminar cuenta", command=self.eliminar_cuenta, width=200, height=40, fg_color=estilos.COLORS['danger'], hover_color="#dc3545")
         btn_delete.grid(row=2, column=2, padx=10, pady=10)
 
-        # --- NUEVO BOTÓN CERRAR SESIÓN ---
-        btn_logout = ctk.CTkButton(fields_frame, text="⏻ Cerrar sesión", command=self.cerrar_sesion, width=200, height=40, fg_color=estilos.COLORS['secondary'], hover_color="#6c757d")
+        btn_logout = ctk.CTkButton(
+            fields_frame,
+            text="🔌 Cerrar Sesión",
+            command=self.cerrar_sesion,
+            width=200,
+            height=40,
+            fg_color=estilos.COLORS['secondary'],
+            hover_color="#4a5568",
+            font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold")
+        )
         btn_logout.grid(row=3, column=2, padx=10, pady=10)
 
-        # Espaciador
-        tk.Label(fields_frame, text="", bg=estilos.COLORS['white']).grid(row=4, column=0, columnspan=2)
-
-    def cerrar_sesion(self):
-        """Cierra la sesión actual y vuelve a mostrar la ventana de login."""
-        respuesta = messagebox.askyesno("🚪 Cerrar sesión", "¿Está seguro de que desea cerrar sesión?")
-        if respuesta:
-            # Destruir la ventana principal (Manager)
-            root = self.winfo_toplevel()
-            root.destroy()
+        tk.Label(fields_frame, text="", bg=estilos.COLORS['white']).grid(row=1, column=0, columnspan=2)
 
     def cargar_foto_rostro(self):
-        """Carga la foto del rostro desde la tabla rostros si existe."""
         if not self.user_id:
             return
         conn = get_connection()
@@ -139,7 +120,6 @@ class PerfilModerno(tk.Frame):
             row = cursor.fetchone()
             if row and row[0]:
                 img_bytes = row[0]
-                # Convertir bytes a imagen
                 img = Image.open(io.BytesIO(img_bytes))
                 img = img.resize((120, 120), Image.Resampling.LANCZOS)
                 img_tk = ImageTk.PhotoImage(img)
@@ -152,7 +132,6 @@ class PerfilModerno(tk.Frame):
             conn.close()
 
     def cambiar_usuario(self):
-        """Cambia el nombre de usuario."""
         nuevo = self.entry_username.get().strip()
         if not nuevo:
             messagebox.showerror("❌ Error", "El nombre de usuario no puede estar vacío")
@@ -160,7 +139,6 @@ class PerfilModerno(tk.Frame):
         if nuevo == self.usuario_actual:
             messagebox.showinfo("ℹ️ Información", "El nombre de usuario es el mismo")
             return
-        # Verificar si ya existe otro usuario con ese nombre
         conn = get_connection()
         if not conn:
             return
@@ -182,10 +160,9 @@ class PerfilModerno(tk.Frame):
             conn.close()
 
     def abrir_ventana_cambiar_password(self):
-        """Abre ventana para cambiar contraseña."""
         ventana = ctk.CTkToplevel(self)
         ventana.title("Cambiar contraseña")
-        ventana.geometry("450x350")
+        ventana.geometry("450x400")
         ventana.resizable(False, False)
         ventana.grab_set()
 
@@ -194,17 +171,14 @@ class PerfilModerno(tk.Frame):
 
         ctk.CTkLabel(frame, text="Cambiar contraseña", font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold")).pack(pady=10)
 
-        # Contraseña actual
         ctk.CTkLabel(frame, text="Contraseña actual:", font=ctk.CTkFont(size=12, weight="bold")).pack(anchor='w', pady=(10, 0))
         entry_actual = ctk.CTkEntry(frame, show="*", width=300)
         entry_actual.pack(pady=5)
 
-        # Nueva contraseña
         ctk.CTkLabel(frame, text="Nueva contraseña:", font=ctk.CTkFont(size=12, weight="bold")).pack(anchor='w', pady=(10, 0))
         entry_nueva = ctk.CTkEntry(frame, show="*", width=300)
         entry_nueva.pack(pady=5)
 
-        # Confirmar
         ctk.CTkLabel(frame, text="Confirmar nueva contraseña:", font=ctk.CTkFont(size=12, weight="bold")).pack(anchor='w', pady=(10, 0))
         entry_confirm = ctk.CTkEntry(frame, show="*", width=300)
         entry_confirm.pack(pady=5)
@@ -222,7 +196,6 @@ class PerfilModerno(tk.Frame):
             if len(nueva) < 6:
                 messagebox.showerror("❌ Error", "La nueva contraseña debe tener al menos 6 caracteres")
                 return
-            # Verificar contraseña actual
             conn = get_connection()
             if not conn:
                 return
@@ -238,7 +211,6 @@ class PerfilModerno(tk.Frame):
                 if input_hash != stored_hash:
                     messagebox.showerror("❌ Error", "Contraseña actual incorrecta")
                     return
-                # Actualizar
                 new_hash = hashlib.sha256(nueva.encode()).hexdigest()
                 cursor.execute("UPDATE usuarios SET password = %s WHERE id = %s", (new_hash, self.user_id))
                 conn.commit()
@@ -254,7 +226,6 @@ class PerfilModerno(tk.Frame):
         btn_guardar.pack(pady=20)
 
     def eliminar_cuenta(self):
-        """Elimina la cuenta del usuario actual."""
         respuesta = messagebox.askyesno("⚠️ Confirmar eliminación", 
                                         f"¿Está seguro de que desea eliminar su cuenta '{self.usuario_actual}'?\n\n"
                                         "Esta acción es irreversible y eliminará todos sus datos asociados (incluyendo rostro).\n"
@@ -264,7 +235,6 @@ class PerfilModerno(tk.Frame):
         password = simpledialog.askstring("Confirmar", "Ingrese su contraseña para confirmar:", show='*')
         if password is None:
             return
-        # Verificar contraseña
         conn = get_connection()
         if not conn:
             return
@@ -280,14 +250,22 @@ class PerfilModerno(tk.Frame):
             if input_hash != stored_hash:
                 messagebox.showerror("❌ Error", "Contraseña incorrecta")
                 return
-            # Eliminar usuario (ON DELETE CASCADE eliminará rostros)
             cursor.execute("DELETE FROM usuarios WHERE id = %s", (self.user_id,))
             conn.commit()
-            messagebox.showinfo("🗑️ Cuenta eliminada", "Su cuenta ha sido eliminada correctamente.\nLa aplicación se cerrará.")
-            # Cerrar la aplicación
-            self.quit()
+            messagebox.showinfo("🗑️ Cuenta eliminada", "Su cuenta ha sido eliminada correctamente.\nSe cerrará la sesión.")
+            self.cerrar_sesion()
         except Exception as e:
             messagebox.showerror("❌ Error", f"Error al eliminar cuenta: {e}")
         finally:
             cursor.close()
             conn.close()
+
+    # ==========  CERRAR SESIÓN ==========
+    def cerrar_sesion(self):
+        """Cierra la sesión y vuelve al login."""
+        if messagebox.askyesno("🔌 Cerrar Sesión", "¿Está seguro de que desea cerrar sesión?"):
+            print("🔵 [Perfil] Cerrando sesión...")
+            if hasattr(self.master, 'cerrar_sesion'):
+                self.master.cerrar_sesion()
+            else:
+                print("⚠️ [Perfil] El contenedor no tiene método cerrar_sesion")

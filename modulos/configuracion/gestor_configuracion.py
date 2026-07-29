@@ -39,7 +39,7 @@ img_check = load_image('check.png')
 img_step0 = load_image('Step0.png')
 img_step1 = load_image('Step1.png')
 img_step2 = load_image('Step2.png')
-img_liche = load_image('LivenessCheck.png')
+# img_liche ELIMINADA
 
 # Variables globales para el bucle de registro
 cap = None

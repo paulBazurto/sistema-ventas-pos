@@ -7,7 +7,7 @@ from modulos.clientes_moderno import ClientesModerno as Clientes
 from modulos.pedidos_moderno import PedidosModerno as Pedidos
 from modulos.proveedores.proveedor_moderno import ProveedorModerno as Proveedor
 from modulos.informacion.informacion_moderna import InformacionModerna as Informacion
-from modulos.perfil.perfil_moderno import PerfilModerno as Perfil  # <-- NUEVA IMPORT
+from modulos.perfil.perfil_moderno import PerfilModerno as Perfil
 from modulos.utils.estilos_modernos import estilos
 from PIL import Image, ImageTk
 import sys
@@ -21,12 +21,11 @@ class Container(tk.Frame):
     def __init__(self, padre, controlador, usuario_actual=None):
         super().__init__(padre)
         self.controlador = controlador
-        self.usuario_actual = usuario_actual  # Guardamos el usuario logueado
+        self.usuario_actual = usuario_actual
         
         # Configurar el frame principal
         self.configure(bg=estilos.COLORS['bg_primary'])
         self.pack()
-      
         self.place(x=0, y=0, relwidth=1.0, relheight=1.0)
         
         # Inicializar
@@ -40,7 +39,6 @@ class Container(tk.Frame):
         # Crear los frames de los módulos (incluyendo Perfil)
         for i in (Ventas, Inventario, Clientes, Pedidos, Proveedor, Informacion, Perfil):
             if i == Perfil:
-                # Pasamos el usuario al perfil
                 frame = i(self, usuario_actual=self.usuario_actual)
             else:
                 frame = i(self)
@@ -87,8 +85,6 @@ class Container(tk.Frame):
             
     def widgets_modernos(self):
         navbar_frame = tk.Frame(self, bg=estilos.COLORS['primary'], height=70)
-        # Antes: navbar_frame.place(x=0, y=0, width=1400, height=70)
-        # Ahora el navbar ocupa el 100% del ancho real de la ventana
         navbar_frame.place(x=0, y=0, relwidth=1.0, height=70)
         
         title_label = tk.Label(navbar_frame, text="🏪 Mi Tienda", 
@@ -97,13 +93,10 @@ class Container(tk.Frame):
         title_label.place(x=20, y=20)
         
         buttons_frame = tk.Frame(navbar_frame, bg=estilos.COLORS['primary'])
-        # Antes: buttons_frame.place(x=460, y=10, width=910, height=50)
-        # Ahora se ancla a la derecha del navbar y ocupa un % relativo del ancho, no un valor fijo
         buttons_frame.place(relx=1.0, rely=0.5, relwidth=0.82, height=50, anchor='e')
         
         from modulos.utils.utils import resource_path
         
-        # Agregamos el botón de Perfil al final (con un ícono de usuario)
         button_configs = [
             {"text": "💰 Ventas", "command": self.Ventas, "module": Ventas},
             {"text": "📦 Inventario", "command": self.Inventario, "module": Inventario},
@@ -111,7 +104,7 @@ class Container(tk.Frame):
             {"text": "📋 Pedidos", "command": self.Pedidos, "module": Pedidos},
             {"text": "🏭 Proveedores", "command": self.Proveedor, "module": Proveedor},
             {"text": "ℹ️ Info", "command": self.Informacion, "module": Informacion},
-            {"text": "👤 Perfil", "command": self.Perfil, "module": Perfil}   # <-- NUEVO
+            {"text": "👤 Perfil", "command": self.Perfil, "module": Perfil}
         ]
         
         self.buttons = []
@@ -128,7 +121,7 @@ class Container(tk.Frame):
             parent,
             text=text,
             command=command,
-            width=1,  # Antes era 115 (fijo); ahora el ancho real lo reparte el pack(expand=True, fill='x')
+            width=1,
             height=40,
             corner_radius=15,
             font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
@@ -138,7 +131,13 @@ class Container(tk.Frame):
             border_width=0,
             cursor="hand2"
         )
-        # Antes: btn.pack(side='left', padx=3, pady=5)
-        # Ahora con expand=True y fill='x' los 7 botones se reparten el espacio disponible por igual
         btn.pack(side='left', padx=3, pady=5, expand=True, fill='x')
         return btn
+
+    # ========== NUEVO MÉTODO: CERRAR SESIÓN ==========
+    def cerrar_sesion(self):
+        """Delega el cierre de sesión al controlador (Manager)."""
+        if hasattr(self.controlador, 'cerrar_sesion'):
+            self.controlador.cerrar_sesion()
+        else:
+            print("⚠️ [Container] El controlador no tiene método cerrar_sesion")
