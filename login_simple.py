@@ -23,10 +23,10 @@ FaceMesh = FacemeshObject.FaceMesh(max_num_faces=1)
 detector = FaceObject.FaceDetection(min_detection_confidence=0.5, model_selection=1)
 ConfigDraw = mp_drawing.DrawingSpec(thickness=1, circle_radius=1)
 
-# Variables globales para la liveness
+# Variables globales (ya no usamos conteo_parpadeos ni step en login)
 parpadeo = False
 conteo = 0
-step = 0
+step = 0          # Se mantiene pero ya no se usa en login
 conteo_parpadeos = 0
 current_username = None
 cap = None
@@ -151,14 +151,11 @@ def crear_usuario_y_rostro(username, password, frame_bgr, bbox=None):
         cursor.close()
         conn.close()
 
-# ================= LOGIN CON ROSTRO =================
+# ================= LOGIN CON ROSTRO (SIN PARPADEOS) =================
 def login_con_rostro(root, ventana_principal, callback_exito):
-    global cap, lblVideo, ventana_camara, autenticado, current_username, step, conteo_parpadeos, parpadeo, intentos_fallidos
+    global cap, lblVideo, ventana_camara, autenticado, current_username, intentos_fallidos
 
     autenticado = False
-    step = 0
-    conteo_parpadeos = 0
-    parpadeo = False
     current_username = None
     intentos_fallidos = 0
 
@@ -177,7 +174,7 @@ def login_con_rostro(root, ventana_principal, callback_exito):
     lblVideo = Label(ventana_camara, bg='black')
     lblVideo.pack(expand=True, fill='both')
 
-    lbl_estado = ctk.CTkLabel(ventana_camara, text="🔍 Verificando...", 
+    lbl_estado = ctk.CTkLabel(ventana_camara, text="🔍 Buscando rostro...", 
                               font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
                               text_color="white", bg_color="black")
     lbl_estado.place(x=500, y=680)
@@ -196,7 +193,7 @@ def login_con_rostro(root, ventana_principal, callback_exito):
         ventana_camara.destroy()
 
     def bucle_login():
-        global cap, lblVideo, autenticado, current_username, step, conteo_parpadeos, parpadeo, intentos_fallidos
+        global cap, lblVideo, autenticado, current_username, intentos_fallidos
 
         if autenticado:
             return
@@ -210,132 +207,49 @@ def login_con_rostro(root, ventana_principal, callback_exito):
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
+        # Dibujar malla facial (solo visual, no afecta liveness)
         res = FaceMesh.process(frame_rgb)
         if res.multi_face_landmarks:
             for rostros in res.multi_face_landmarks:
                 mp_drawing.draw_landmarks(frame, rostros, FacemeshObject.FACEMESH_TESSELATION, ConfigDraw, ConfigDraw)
 
-                lista = []
-                for id, puntos in enumerate(rostros.landmark):
-                    al, an, _ = frame.shape
-                    x, y = int(puntos.x * an), int(puntos.y * al)
-                    lista.append([id, x, y])
+        # ---- RECONOCIMIENTO FACIAL DIRECTO (sin parpadeos) ----
+        frame_fr = cv2.resize(frame_copy, (0,0), None, 0.25, 0.25)
+        rgb_fr = cv2.cvtColor(frame_fr, cv2.COLOR_BGR2RGB)
+        faces_locs = fr.face_locations(rgb_fr)
+        faces_encs = fr.face_encodings(rgb_fr, faces_locs)
 
-                if len(lista) == 468:
-                    x1, y1 = lista[145][1], lista[145][2]
-                    x2, y2 = lista[159][1], lista[159][2]
-                    longitud1 = math.hypot(x2 - x1, y2 - y1)
+        if not faces_encs:
+            lbl_estado.configure(text="😐 No se detecta rostro, acércate")
+        else:
+            for face_enc in faces_encs:
+                if not FaceCode:
+                    break
+                distances = fr.face_distance(FaceCode, face_enc)
+                if len(distances) > 0:
+                    min_dist = np.min(distances)
+                    print(f"🔍 Distancia mínima: {min_dist:.4f}")
+                    if min_dist < 0.45:
+                        best_idx = np.argmin(distances)
+                        current_username = clases[best_idx]
+                        autenticado = True
+                        cap.release()
+                        ventana_camara.destroy()
+                        messagebox.showinfo("✅ Bienvenido", f"¡Bienvenido {current_username}!")
+                        callback_exito()
+                        return
+                    else:
+                        lbl_estado.configure(text="❌ Rostro no reconocido")
+                        intentos_fallidos += 1
+                        if intentos_fallidos >= MAX_INTENTOS:
+                            cap.release()
+                            ventana_camara.destroy()
+                            messagebox.showerror("❌ Autenticación fallida", 
+                                                "No se pudo reconocer el rostro.\n"
+                                                "Asegúrese de estar registrado y de que la cámara enfoca correctamente.")
+                            return
 
-                    x3, y3 = lista[374][1], lista[374][2]
-                    x4, y4 = lista[386][1], lista[386][2]
-                    longitud2 = math.hypot(x4 - x3, y4 - y3)
-
-                    x5, y5 = lista[139][1], lista[139][2]
-                    x6, y6 = lista[368][1], lista[368][2]
-                    x7, y7 = lista[70][1], lista[70][2]
-                    x8, y8 = lista[300][1], lista[300][2]
-
-                    faces = detector.process(frame_rgb)
-                    if faces.detections is not None:
-                        for face in faces.detections:
-                            score = face.score[0]
-                            bbox = face.location_data.relative_bounding_box
-                            if score > 0.5:
-                                alimg, animg, _ = frame.shape
-                                xi = int(bbox.xmin * animg)
-                                yi = int(bbox.ymin * alimg)
-                                an = int(bbox.width * animg)
-                                al = int(bbox.height * alimg)
-
-                                offsetan = (20 / 100) * an
-                                xi = int(xi - offsetan/2)
-                                an = int(an + offsetan)
-                                xf = xi + an
-
-                                offsetal = (30 / 100) * al
-                                yi = int(yi - offsetal)
-                                al = int(al + offsetal)
-                                yf = yi + al
-
-                                if xi < 0: xi = 0
-                                if yi < 0: yi = 0
-
-                                # ---- PASOS DE LIVENESS ----
-                                if step == 0:
-                                    cv2.rectangle(frame, (xi, yi, an, al), (255, 0, 255), 2)
-                                    if img_step0 is not None:
-                                        h, w, _ = img_step0.shape
-                                        frame[50:50+h, 50:50+w] = img_step0
-                                    if img_step1 is not None:
-                                        h, w, _ = img_step1.shape
-                                        frame[50:50+h, 1030:1030+w] = img_step1
-                                    if img_step2 is not None:
-                                        h, w, _ = img_step2.shape
-                                        frame[270:270+h, 1030:1030+w] = img_step2
-
-                                    if x7 > x5 and x8 < x6:
-                                        if longitud1 <= 10 and longitud2 <= 10 and not parpadeo:
-                                            conteo_parpadeos += 1
-                                            parpadeo = True
-                                        elif longitud1 > 10 and longitud2 > 10 and parpadeo:
-                                            parpadeo = False
-
-                                        if img_check is not None:
-                                            h, w, _ = img_check.shape
-                                            frame[165:165+h, 1105:1105+w] = img_check
-                                        cv2.putText(frame, f'Parpadeos: {int(conteo_parpadeos)}', (1070, 375),
-                                                    cv2.FONT_HERSHEY_COMPLEX, 0.5, (255,255,255), 1)
-
-                                        if conteo_parpadeos >= 3:
-                                            if img_check is not None:
-                                                h, w, _ = img_check.shape
-                                                frame[385:385+h, 1105:1105+w] = img_check
-                                            if longitud1 > 14 and longitud2 > 14:
-                                                step = 1
-                                    else:
-                                        conteo_parpadeos = 0
-
-                                elif step == 1:
-                                    cv2.rectangle(frame, (xi, yi, an, al), (0, 255, 0), 2)
-                                    cv2.putText(frame, 'Verificando identidad...', (450, 680),
-                                                cv2.FONT_HERSHEY_COMPLEX, 0.8, (0, 255, 0), 2)
-
-                                    # ---- RECONOCIMIENTO FACIAL ----
-                                    frame_fr = cv2.resize(frame_copy, (0,0), None, 0.25, 0.25)
-                                    rgb_fr = cv2.cvtColor(frame_fr, cv2.COLOR_BGR2RGB)
-                                    faces_locs = fr.face_locations(rgb_fr)
-                                    faces_encs = fr.face_encodings(rgb_fr, faces_locs)
-
-                                    if not faces_encs:
-                                        lbl_estado.configure(text="😐 No se detecta rostro, acércate")
-                                    else:
-                                        for face_enc in faces_encs:
-                                            if not FaceCode:
-                                                break
-                                            distances = fr.face_distance(FaceCode, face_enc)
-                                            if len(distances) > 0:
-                                                min_dist = np.min(distances)
-                                                print(f"🔍 Distancia mínima: {min_dist:.4f}")
-                                                if min_dist < 0.45:
-                                                    best_idx = np.argmin(distances)
-                                                    current_username = clases[best_idx]
-                                                    autenticado = True
-                                                    cap.release()
-                                                    ventana_camara.destroy()
-                                                    messagebox.showinfo("✅ Bienvenido", f"¡Bienvenido {current_username}!")
-                                                    callback_exito()
-                                                    return
-                                                else:
-                                                    lbl_estado.configure(text="❌ Rostro no reconocido")
-                                                    intentos_fallidos += 1
-                                                    if intentos_fallidos >= MAX_INTENTOS:
-                                                        cap.release()
-                                                        ventana_camara.destroy()
-                                                        messagebox.showerror("❌ Autenticación fallida", 
-                                                                            "No se pudo reconocer el rostro.\n"
-                                                                            "Asegúrese de estar registrado y de que la cámara enfoca correctamente.")
-                                                        return
-
+        # Mostrar el frame procesado
         frame = cv2.resize(frame, (1280, 720))
         im = Image.fromarray(frame)
         img_tk = ImageTk.PhotoImage(im)
