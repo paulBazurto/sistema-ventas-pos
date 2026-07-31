@@ -47,12 +47,10 @@ def load_image(name):
         print(f"⚠️ No se encontró {path}")
     return img
 
-# Solo las imágenes que realmente se usan
 img_check = load_image('check.png')
 img_step0 = load_image('Step0.png')
 img_step1 = load_image('Step1.png')
 img_step2 = load_image('Step2.png')
-# img_liche ELIMINADA
 
 # ================= FUNCIONES DE BASE DE DATOS =================
 def verificar_login(usuario, password):
@@ -153,7 +151,7 @@ def crear_usuario_y_rostro(username, password, frame_bgr, bbox=None):
         cursor.close()
         conn.close()
 
-# ================= LOGIN CON ROSTRO (CON ANIMACIONES Y TIMEOUT) =================
+# ================= LOGIN CON ROSTRO =================
 def login_con_rostro(root, ventana_principal, callback_exito):
     global cap, lblVideo, ventana_camara, autenticado, current_username, step, conteo_parpadeos, parpadeo, intentos_fallidos
 
@@ -171,7 +169,7 @@ def login_con_rostro(root, ventana_principal, callback_exito):
 
     ventana_camara = Toplevel(root)
     ventana_camara.title("🔐 Login Facial - Mire a la cámara")
-    ventana_camara.geometry("800x600")
+    ventana_camara.geometry("1280x720")
     ventana_camara.configure(bg='black')
     ventana_camara.grab_set()
     ventana_camara.focus_set()
@@ -179,11 +177,10 @@ def login_con_rostro(root, ventana_principal, callback_exito):
     lblVideo = Label(ventana_camara, bg='black')
     lblVideo.pack(expand=True, fill='both')
 
-    # Etiqueta de estado (feedback visual)
     lbl_estado = ctk.CTkLabel(ventana_camara, text="🔍 Verificando...", 
                               font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
                               text_color="white", bg_color="black")
-    lbl_estado.place(x=300, y=550)
+    lbl_estado.place(x=500, y=680)
 
     cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
     cap.set(3, 1280)
@@ -300,7 +297,6 @@ def login_con_rostro(root, ventana_principal, callback_exito):
 
                                 elif step == 1:
                                     cv2.rectangle(frame, (xi, yi, an, al), (0, 255, 0), 2)
-                                    # Ya no mostramos LivenessCheck.png
                                     cv2.putText(frame, 'Verificando identidad...', (450, 680),
                                                 cv2.FONT_HERSHEY_COMPLEX, 0.8, (0, 255, 0), 2)
 
@@ -340,7 +336,7 @@ def login_con_rostro(root, ventana_principal, callback_exito):
                                                                             "Asegúrese de estar registrado y de que la cámara enfoca correctamente.")
                                                         return
 
-        frame = cv2.resize(frame, (800, 600))
+        frame = cv2.resize(frame, (1280, 720))
         im = Image.fromarray(frame)
         img_tk = ImageTk.PhotoImage(im)
         lblVideo.configure(image=img_tk)
@@ -357,12 +353,19 @@ def login_con_rostro(root, ventana_principal, callback_exito):
 
 # ================= REGISTRO DE NUEVO USUARIO CON ROSTRO =================
 def registrar_usuario_con_rostro(root):
+    root.withdraw()
+
     reg_window = Toplevel(root)
     reg_window.title("📝 Registrar Nuevo Usuario")
     reg_window.geometry("400x350")
     reg_window.configure(bg=estilos.COLORS['white'])
     reg_window.grab_set()
     reg_window.focus_set()
+
+    def on_reg_window_close():
+        root.deiconify()
+        reg_window.destroy()
+    reg_window.protocol("WM_DELETE_WINDOW", on_reg_window_close)
 
     tk.Label(reg_window, text="Nuevo Usuario", font=('Segoe UI', 16, 'bold'),
              bg=estilos.COLORS['white'], fg=estilos.COLORS['primary']).pack(pady=15)
@@ -400,7 +403,7 @@ def registrar_usuario_con_rostro(root):
     btn_capturar.pack(pady=15)
 
     btn_cancelar = ctk.CTkButton(reg_window, text="❌ Cancelar",
-                                 command=reg_window.destroy,
+                                 command=on_reg_window_close,
                                  width=250, height=40,
                                  font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
                                  fg_color=estilos.COLORS['danger'])
@@ -415,7 +418,7 @@ def capturar_rostro_para_registro(root, username, password):
 
     ventana_camara = Toplevel(root)
     ventana_camara.title(f"📸 Registro Facial - {username}")
-    ventana_camara.geometry("800x600")
+    ventana_camara.geometry("1280x720")
     ventana_camara.configure(bg='black')
     ventana_camara.grab_set()
     ventana_camara.focus_set()
@@ -428,6 +431,7 @@ def capturar_rostro_para_registro(root, username, password):
     cap.set(4, 720)
     if not cap.isOpened():
         messagebox.showerror("Error", "No se pudo abrir la cámara")
+        root.deiconify()
         ventana_camara.destroy()
         return
 
@@ -435,6 +439,7 @@ def capturar_rostro_para_registro(root, username, password):
         if cap is not None:
             cap.release()
         ventana_camara.destroy()
+        root.deiconify()
 
     def bucle_registro():
         global cap, lblVideo, step, conteo, parpadeo
@@ -526,20 +531,18 @@ def capturar_rostro_para_registro(root, username, password):
                                             if longitud1 > 14 and longitud2 > 14:
                                                 bbox = (yi, yi + al, xi, xi + an)
                                                 exito, mensaje = crear_usuario_y_rostro(username, password, frame_save, bbox)
+                                                cap.release()
+                                                ventana_camara.destroy()
+                                                root.deiconify()
                                                 if exito:
                                                     messagebox.showinfo("✅ Éxito", mensaje)
-                                                    cap.release()
-                                                    ventana_camara.destroy()
-                                                    return
                                                 else:
                                                     messagebox.showerror("❌ Error", mensaje)
-                                                    cap.release()
-                                                    ventana_camara.destroy()
-                                                    return
+                                                return
                                     else:
                                         conteo = 0
 
-        frame = cv2.resize(frame, (800, 600))
+        frame = cv2.resize(frame, (1280, 720))
         im = Image.fromarray(frame)
         img_tk = ImageTk.PhotoImage(im)
         lblVideo.configure(image=img_tk)
@@ -554,7 +557,7 @@ def capturar_rostro_para_registro(root, username, password):
     ventana_camara.protocol("WM_DELETE_WINDOW", cerrar_camara)
     bucle_registro()
 
-# ================= VENTANA PRINCIPAL DE LOGIN (CON DEPURACIÓN) =================
+# ================= VENTANA PRINCIPAL DE LOGIN =================
 def mostrar_login_simple():
     print("🔄 [mostrar_login_simple] Iniciando...")
     global root
@@ -579,14 +582,13 @@ def mostrar_login_simple():
     y = (root.winfo_screenheight() // 2) - (700 // 2)
     root.geometry(f"500x700+{x}+{y}")
 
-    # Variable que almacenará el nombre del usuario autenticado
     usuario_autenticado = None
     print("✅ Variables inicializadas")
 
     def autenticar_facial_exitoso():
         nonlocal usuario_autenticado
         print("🔐 [autenticar_facial_exitoso] Llamado")
-        usuario_autenticado = current_username  # variable global de login_con_rostro
+        usuario_autenticado = current_username
         print(f"👤 Usuario autenticado facialmente: {usuario_autenticado}")
         root.destroy()
 
@@ -622,7 +624,6 @@ def mostrar_login_simple():
 
     title_label = ctk.CTkLabel(main_frame, text="Sistema de Punto de Venta", font=ctk.CTkFont(family="Segoe UI", size=24, weight="bold"), text_color=estilos.COLORS['primary'])
     title_label.pack(pady=(0, 10))
-  
 
     form_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
     form_frame.pack(fill='x', padx=40, pady=20)
