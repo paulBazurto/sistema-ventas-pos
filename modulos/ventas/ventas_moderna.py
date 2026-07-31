@@ -11,6 +11,14 @@ from modulos.ventas.obtener_numero_factura import obtener_numero_factura_actual
 from data.models import get_connection
 from modulos.configuracion.gestor_configuracion import obtener_configuracion
 
+# Importar tkcalendar
+try:
+    from tkcalendar import DateEntry
+    TK_CALENDAR_DISPONIBLE = True
+except ImportError:
+    TK_CALENDAR_DISPONIBLE = False
+    print("⚠️ tkcalendar no instalado. Para usar calendario ejecuta: pip install tkcalendar")
+
 
 class VentasModerna(tk.Frame):
     """Versión moderna de la interfaz de ventas con mejor diseño"""
@@ -774,7 +782,7 @@ según normativas SENIAT
         if hasattr(self, 'modal_pago'):
             self.modal_pago.destroy()
 
-    # ==================== HISTORIAL DE VENTAS ====================
+    # ==================== HISTORIAL DE VENTAS CON CALENDARIO (DateEntry) ====================
     def ver_ventas_realizadas(self):
         # Verificar si la ventana ya existe y está visible
         if hasattr(self, 'ventana_ventas'):
@@ -786,14 +794,13 @@ según normativas SENIAT
                 else:
                     delattr(self, 'ventana_ventas')
             except (tk.TclError, AttributeError):
-                # La ventana ya fue destruida, eliminar referencia
                 if hasattr(self, 'ventana_ventas'):
                     delattr(self, 'ventana_ventas')
 
-        # Crear nueva ventana
+        # Crear nueva ventana - más ancha (1300px)
         self.ventana_ventas = tk.Toplevel(self)
         self.ventana_ventas.title("📊 Historial de Ventas")
-        self.ventana_ventas.geometry("1200x700")
+        self.ventana_ventas.geometry("1300x700")
         self.ventana_ventas.configure(bg=self.COLORS['light'])
         self.ventana_ventas.resizable(True, True)
         self.ventana_ventas.minsize(1000, 600)
@@ -825,62 +832,92 @@ según normativas SENIAT
         tk.Label(filtros_frame, text="📅 Rango de fechas:", 
                 font=('Segoe UI', 12, 'bold'), bg=self.COLORS['white'],
                 fg=self.COLORS['primary']).place(x=20, y=15)
+
+        # --- DESDE ---
         tk.Label(filtros_frame, text="Desde:", 
                 font=('Segoe UI', 10), bg=self.COLORS['white'],
-                fg=self.COLORS['dark']).place(x=160, y=15)
-        self.entry_fecha_desde = tk.Entry(filtros_frame, font=('Segoe UI', 10), 
-                                        relief='solid', bd=1, width=10)
-        self.entry_fecha_desde.place(x=200, y=15)
-        self.entry_fecha_desde.insert(0, datetime.datetime.now().strftime("%Y-%m-%d"))
+                fg=self.COLORS['dark']).place(x=180, y=15)
 
+        if TK_CALENDAR_DISPONIBLE:
+            # Se quitó state='readonly': con readonly, tkcalendar cierra el popup
+            # al hacer clic en las flechas de mes/año antes de aplicar el cambio
+            self.entry_fecha_desde = DateEntry(filtros_frame, font=('Segoe UI', 10), 
+                                               width=12, background='darkblue',
+                                               foreground='white', borderwidth=2,
+                                               date_pattern='yyyy-mm-dd')
+            self.entry_fecha_desde.place(x=230, y=12)
+        else:
+            self.entry_fecha_desde = tk.Entry(filtros_frame, font=('Segoe UI', 10), 
+                                             relief='solid', bd=1, width=12)
+            self.entry_fecha_desde.place(x=230, y=15)
+            self.entry_fecha_desde.insert(0, datetime.datetime.now().strftime("%Y-%m-%d"))
+
+        # --- HASTA ---
         tk.Label(filtros_frame, text="Hasta:", 
                 font=('Segoe UI', 10), bg=self.COLORS['white'],
-                fg=self.COLORS['dark']).place(x=300, y=15)
-        self.entry_fecha_hasta = tk.Entry(filtros_frame, font=('Segoe UI', 10), 
-                                        relief='solid', bd=1, width=10)
-        self.entry_fecha_hasta.place(x=340, y=15)
-        self.entry_fecha_hasta.insert(0, datetime.datetime.now().strftime("%Y-%m-%d"))
+                fg=self.COLORS['dark']).place(x=370, y=15)
 
+        if TK_CALENDAR_DISPONIBLE:
+            # Se quitó state='readonly' por el mismo motivo que arriba
+            self.entry_fecha_hasta = DateEntry(filtros_frame, font=('Segoe UI', 10), 
+                                               width=12, background='darkblue',
+                                               foreground='white', borderwidth=2,
+                                               date_pattern='yyyy-mm-dd')
+            self.entry_fecha_hasta.place(x=420, y=12)
+        else:
+            self.entry_fecha_hasta = tk.Entry(filtros_frame, font=('Segoe UI', 10), 
+                                             relief='solid', bd=1, width=12)
+            self.entry_fecha_hasta.place(x=420, y=15)
+            self.entry_fecha_hasta.insert(0, datetime.datetime.now().strftime("%Y-%m-%d"))
+
+        # --- BOTONES ---
         btn_filtrar = tk.Button(filtros_frame, text="🔍 Filtrar Rango", 
                               command=self.filtrar_ventas_por_rango,
                               bg=self.COLORS['primary'], fg=self.COLORS['white'],
                               font=('Segoe UI', 10, 'bold'), relief='flat', 
                               cursor='hand2', bd=0, width=12, height=1)
-        btn_filtrar.place(x=450, y=12)
+        btn_filtrar.place(x=560, y=12)
+
         btn_hoy = tk.Button(filtros_frame, text="📆 Hoy", 
                           command=self.filtrar_ventas_hoy,
                           bg=self.COLORS['success'], fg=self.COLORS['white'],
                           font=('Segoe UI', 10, 'bold'), relief='flat', 
                           cursor='hand2', bd=0, width=12, height=1)
-        btn_hoy.place(x=580, y=12)
+        btn_hoy.place(x=690, y=12)
+
         btn_semana = tk.Button(filtros_frame, text="📅 Esta Semana", 
                              command=self.filtrar_ventas_semana,
                              bg=self.COLORS['warning'], fg=self.COLORS['white'],
                              font=('Segoe UI', 10, 'bold'), relief='flat', 
                              cursor='hand2', bd=0, width=12, height=1)
-        btn_semana.place(x=450, y=45)
+        btn_semana.place(x=560, y=45)
+
         btn_mes = tk.Button(filtros_frame, text="📊 Este Mes", 
                           command=self.filtrar_ventas_mes,
                           bg=self.COLORS['secondary'], fg=self.COLORS['white'],
                           font=('Segoe UI', 10, 'bold'), relief='flat', 
                           cursor='hand2', bd=0, width=12, height=1)
-        btn_mes.place(x=580, y=45)
+        btn_mes.place(x=690, y=45)
+
         btn_todas = tk.Button(filtros_frame, text="📋 Todas", 
                             command=self.mostrar_todas_ventas,
                             bg=self.COLORS['danger'], fg=self.COLORS['white'],
                             font=('Segoe UI', 10, 'bold'), relief='flat', 
                             cursor='hand2', bd=0, width=12, height=1)
-        btn_todas.place(x=710, y=12)
+        btn_todas.place(x=820, y=12)
 
+        # --- TOTALES ---
         self.label_total_dia = tk.Label(filtros_frame, text="💰 Total del rango: $0.00", 
                                       font=('Segoe UI', 14, 'bold'), bg=self.COLORS['white'],
                                       fg=self.COLORS['success'])
-        self.label_total_dia.place(x=820, y=15)
+        self.label_total_dia.place(x=950, y=15)
+
         self.label_total_hoy = tk.Label(filtros_frame, text="📈 Ventas HOY: $0.00", 
                                       font=('Segoe UI', 14, 'bold'), bg=self.COLORS['white'],
                                       fg=self.COLORS['primary'])
-        self.label_total_hoy.place(x=820, y=45)
+        self.label_total_hoy.place(x=950, y=45)
 
+        # --- CONTENIDO DE LA TABLA ---
         content_frame = tk.Frame(self.ventana_ventas, bg=self.COLORS['light'])
         content_frame.pack(fill='both', expand=True, padx=20, pady=10)
         tree_frame = tk.Frame(content_frame, bg=self.COLORS['white'], relief='solid', bd=1)
@@ -907,8 +944,15 @@ según normativas SENIAT
     def filtrar_ventas_por_rango(self):
         if not hasattr(self, 'ventana_ventas') or not self.ventana_ventas.winfo_exists():
             return
-        fecha_desde = self.entry_fecha_desde.get()
-        fecha_hasta = self.entry_fecha_hasta.get()
+        # Obtener fechas de los DateEntry o Entry
+        if TK_CALENDAR_DISPONIBLE:
+            # DateEntry devuelve string en formato yyyy-mm-dd
+            fecha_desde = self.entry_fecha_desde.get()
+            fecha_hasta = self.entry_fecha_hasta.get()
+        else:
+            fecha_desde = self.entry_fecha_desde.get().strip()
+            fecha_hasta = self.entry_fecha_hasta.get().strip()
+
         if not fecha_desde or not fecha_hasta:
             messagebox.showwarning("⚠️ Advertencia", "Por favor ingrese ambas fechas")
             return
@@ -938,10 +982,14 @@ según normativas SENIAT
         if not hasattr(self, 'ventana_ventas') or not self.ventana_ventas.winfo_exists():
             return
         fecha_hoy = datetime.datetime.now().strftime("%Y-%m-%d")
-        self.entry_fecha_desde.delete(0, tk.END)
-        self.entry_fecha_desde.insert(0, fecha_hoy)
-        self.entry_fecha_hasta.delete(0, tk.END)
-        self.entry_fecha_hasta.insert(0, fecha_hoy)
+        if TK_CALENDAR_DISPONIBLE:
+            self.entry_fecha_desde.set_date(datetime.datetime.now())
+            self.entry_fecha_hasta.set_date(datetime.datetime.now())
+        else:
+            self.entry_fecha_desde.delete(0, tk.END)
+            self.entry_fecha_desde.insert(0, fecha_hoy)
+            self.entry_fecha_hasta.delete(0, tk.END)
+            self.entry_fecha_hasta.insert(0, fecha_hoy)
         self.filtrar_ventas_por_rango()
 
     def filtrar_ventas_semana(self):
@@ -950,10 +998,14 @@ según normativas SENIAT
         hoy = datetime.datetime.now()
         inicio_semana = hoy - datetime.timedelta(days=hoy.weekday())
         fin_semana = inicio_semana + datetime.timedelta(days=6)
-        self.entry_fecha_desde.delete(0, tk.END)
-        self.entry_fecha_desde.insert(0, inicio_semana.strftime("%Y-%m-%d"))
-        self.entry_fecha_hasta.delete(0, tk.END)
-        self.entry_fecha_hasta.insert(0, fin_semana.strftime("%Y-%m-%d"))
+        if TK_CALENDAR_DISPONIBLE:
+            self.entry_fecha_desde.set_date(inicio_semana)
+            self.entry_fecha_hasta.set_date(fin_semana)
+        else:
+            self.entry_fecha_desde.delete(0, tk.END)
+            self.entry_fecha_desde.insert(0, inicio_semana.strftime("%Y-%m-%d"))
+            self.entry_fecha_hasta.delete(0, tk.END)
+            self.entry_fecha_hasta.insert(0, fin_semana.strftime("%Y-%m-%d"))
         self.filtrar_ventas_por_rango()
 
     def filtrar_ventas_mes(self):
@@ -965,10 +1017,14 @@ según normativas SENIAT
             fin_mes = hoy.replace(year=hoy.year + 1, month=1, day=1) - datetime.timedelta(days=1)
         else:
             fin_mes = hoy.replace(month=hoy.month + 1, day=1) - datetime.timedelta(days=1)
-        self.entry_fecha_desde.delete(0, tk.END)
-        self.entry_fecha_desde.insert(0, inicio_mes.strftime("%Y-%m-%d"))
-        self.entry_fecha_hasta.delete(0, tk.END)
-        self.entry_fecha_hasta.insert(0, fin_mes.strftime("%Y-%m-%d"))
+        if TK_CALENDAR_DISPONIBLE:
+            self.entry_fecha_desde.set_date(inicio_mes)
+            self.entry_fecha_hasta.set_date(fin_mes)
+        else:
+            self.entry_fecha_desde.delete(0, tk.END)
+            self.entry_fecha_desde.insert(0, inicio_mes.strftime("%Y-%m-%d"))
+            self.entry_fecha_hasta.delete(0, tk.END)
+            self.entry_fecha_hasta.insert(0, fin_mes.strftime("%Y-%m-%d"))
         self.filtrar_ventas_por_rango()
 
     def mostrar_todas_ventas(self):
