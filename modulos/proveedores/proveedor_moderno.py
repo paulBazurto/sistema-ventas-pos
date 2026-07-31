@@ -175,16 +175,16 @@ class ProveedorModerno(tk.Frame):
         # Estadísticas
         # Antes: stats_frame.place(x=20, y=580, width=300, height=80)  <- fijo, chocaba con los botones
         stats_frame = tk.Frame(self, bg=estilos.COLORS['white'], relief='solid', bd=1)
-        stats_frame.place(x=20, rely=0.95, width=300, height=70, anchor='w')
+        stats_frame.place(x=20, rely=0.95, width=300, height=65, anchor='w')
         tk.Label(stats_frame, text="📊 Estadísticas", 
                 font=('Segoe UI', 12, 'bold'), 
                 bg=estilos.COLORS['white'],
-                fg=estilos.COLORS['primary']).place(x=10, y=5)
+                fg=estilos.COLORS['primary']).place(x=10, y=6)
         self.stats_label = tk.Label(stats_frame, text="Total de proveedores: 0", 
                                    font=('Segoe UI', 10), 
                                    bg=estilos.COLORS['white'],
                                    fg=estilos.COLORS['dark'])
-        self.stats_label.place(x=10, y=35)
+        self.stats_label.place(x=10, y=40)
 
     # ---------------------------------------------------------------------------------
     def validar_campos(self):

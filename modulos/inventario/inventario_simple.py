@@ -215,9 +215,10 @@ class InventarioSimple(tk.Frame):
         """Ventana para agregar un nuevo producto (versión MySQL)"""
         top = tk.Toplevel(self)
         top.title("➕ Agregar Nuevo Producto")
-        top.geometry("700x500+200+50")
+        top.geometry("950x750+200+50")      # Más alto para dar espacio
+        top.minsize(800, 650)
         top.configure(bg=estilos.COLORS['white'])
-        top.resizable(False, False)
+        top.resizable(True, True)
         
         top.transient(self.master)
         top.grab_set()
@@ -274,11 +275,23 @@ class InventarioSimple(tk.Frame):
                                   font=('Segoe UI', 12), bg='lightgray')
         img_placeholder.pack(expand=True)
         
-        # Botón para cargar imagen
-        btn_imagen = ctk.CTkButton(main_frame, text='📁 Cargar Imagen', 
-                                  font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
-                                  command=self.load_image, width=180, height=35)
-        btn_imagen.place(x=480, y=230)
+        # Botón Cargar Imagen mejorado
+        btn_imagen = ctk.CTkButton(
+            main_frame, 
+            text='📁 Cargar Imagen', 
+            font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
+            command=self.load_image, 
+            width=180, 
+            height=45,
+            corner_radius=10,
+            fg_color=estilos.COLORS['info'],
+            hover_color="#0ea5e9",
+            text_color=estilos.COLORS['white'],
+            border_width=1,
+            border_color=estilos.COLORS['primary']
+        )
+        btn_imagen.place(x=355, y=225)  # Justo debajo de la imagen
+       
         
         def guardar():
             codigo = entry_codigo.get().strip()
@@ -287,7 +300,6 @@ class InventarioSimple(tk.Frame):
             costo_str = entry_costo.get().strip()
             stock_str = entry_stock.get().strip()
             
-            # Validaciones
             if not all([codigo, articulo, precio_str, costo_str, stock_str]):
                 messagebox.showerror("❌ Error", "Todos los campos deben ser completados")
                 return
@@ -296,16 +308,13 @@ class InventarioSimple(tk.Frame):
                 precio_float = float(precio_str)
                 costo_float = float(costo_str)
                 stock_int = int(stock_str)
-                
                 if precio_float <= 0 or costo_float <= 0 or stock_int < 0:
                     messagebox.showerror("❌ Error", "Los valores deben ser positivos")
                     return
-                    
             except ValueError:
                 messagebox.showerror("❌ Error", "Precio, costo y stock deben ser números válidos")
                 return
             
-            # Verificar si el código ya existe (con MySQL)
             conn = get_connection()
             if not conn:
                 return
@@ -320,24 +329,18 @@ class InventarioSimple(tk.Frame):
             except Exception:
                 pass
             
-            # Imagen por defecto si no se cargó una
             imagen_path = getattr(self, 'image_path', 'media/icons/img_default.png')
             
             try:
-                # Insertar el nuevo producto
                 cursor.execute("""INSERT INTO articulos 
                                (codigo, articulo, precio, costo, stock, estado, image_path) 
                                VALUES (%s, %s, %s, %s, %s, 'activo', %s)""", 
                                (codigo, articulo, precio_float, costo_float, stock_int, imagen_path))
                 conn.commit()
-                
                 messagebox.showinfo('✅ Éxito', f'Producto "{articulo}" agregado correctamente')
                 top.destroy()
-                
-                # Recargar la vista
                 self.cargar_articulos()
                 self.articulos_combobox()
-                
             except Exception as e:
                 print(f'Error al agregar producto: {e}')
                 messagebox.showerror("❌ Error", f"Error al agregar producto: {e}")
@@ -345,11 +348,10 @@ class InventarioSimple(tk.Frame):
                 cursor.close()
                 conn.close()
         
-        # Frame para botones (más arriba)
+        # Frame para botones (más abajo para dejar espacio)
         btn_frame = tk.Frame(main_frame, bg=estilos.COLORS['white'])
-        btn_frame.place(x=50, y=320, width=400, height=60)
+        btn_frame.place(x=50, y=340, width=400, height=60)  # Antes 320
         
-        # Botones
         btn_guardar = ctk.CTkButton(btn_frame, text='💾 Guardar Producto', 
                                    font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
                                    command=guardar, width=180, height=40,
@@ -365,54 +367,33 @@ class InventarioSimple(tk.Frame):
         btn_cancelar.pack(side='right', padx=10, pady=10)
     
     def load_image(self):
-        """Cargar imagen para el producto"""
         file_path = filedialog.askopenfilename(
             title="Seleccionar imagen del producto",
-            filetypes=[
-                ("Imágenes", "*.png *.jpg *.jpeg *.gif *.bmp"),
-                ("PNG", "*.png"),
-                ("JPEG", "*.jpg *.jpeg"),
-                ("Todos los archivos", "*.*")
-            ]
+            filetypes=[("Imágenes", "*.png *.jpg *.jpeg *.gif *.bmp"), ("PNG", "*.png"), ("JPEG", "*.jpg *.jpeg"), ("Todos los archivos", "*.*")]
         )
-        
         if file_path:
             try:
-                # Abrir y redimensionar la imagen
                 image = Image.open(file_path)
-                image = image.resize((180, 180),Image.Resampling.LANCZOS)
-                
-                # Guardar la imagen en la carpeta del proyecto
+                image = image.resize((180, 180), Image.Resampling.LANCZOS)
                 image_name = os.path.basename(file_path)
                 image_save_path = os.path.join(self.image_folder, image_name)
                 image.save(image_save_path)
-                
-                # Mostrar la imagen en el frame
                 self.image_tk = ImageTk.PhotoImage(image)
                 self.image_path = image_save_path
-                
-                # Limpiar el frame y mostrar la nueva imagen
                 for widget in self.frameimg.winfo_children():
                     widget.destroy()
-                
                 image_label = tk.Label(self.frameimg, image=self.image_tk, bg='lightgray')
                 image_label.pack(expand=True, fill='both')
-                
                 messagebox.showinfo("✅ Éxito", "Imagen cargada correctamente")
-                
             except Exception as e:
                 messagebox.showerror("❌ Error", f"Error al cargar la imagen: {e}")
     
     def editar_articulo(self):
-        """Ventana para editar un producto existente (versión MySQL)"""
-        # Verificar que hay un producto seleccionado
         producto_seleccionado = self.comboboxbuscar.get().strip()
-        
         if not producto_seleccionado:
             messagebox.showerror("❌ Error", "Selecciona un producto para editar")
             return
         
-        # Obtener datos del producto
         conn = get_connection()
         if not conn:
             return
@@ -432,72 +413,55 @@ class InventarioSimple(tk.Frame):
             cursor.close()
             conn.close()
         
-        # Crear ventana de edición
+        # Ventana de edición más grande y con más espacio
         top = tk.Toplevel(self)
         top.title("✏️ Editar Producto")
-        top.geometry("700x500+200+50")
+        top.geometry("950x750+200+50")
+        top.minsize(800, 650)
         top.configure(bg=estilos.COLORS['white'])
-        top.resizable(False, False)
-        
+        top.resizable(True, True)
         top.transient(self.master)
         top.grab_set()
         top.focus_set()
         top.lift()
         
-        # Título
         title_label = tk.Label(top, text=f"✏️ Editar Producto: {articulo_actual}", 
                               font=('Segoe UI', 16, 'bold'), 
                               bg=estilos.COLORS['white'],
                               fg=estilos.COLORS['primary'])
         title_label.pack(pady=15)
         
-        # Frame principal
         main_frame = tk.Frame(top, bg=estilos.COLORS['white'])
         main_frame.pack(fill='both', expand=True, padx=20, pady=10)
         
-        # Campos de entrada con valores actuales
-        tk.Label(main_frame, text="Código de Barras:", 
-                font=('Segoe UI', 12, 'bold'), 
-                bg=estilos.COLORS['white']).place(x=20, y=20)
+        # Campos
+        tk.Label(main_frame, text="Código de Barras:", font=('Segoe UI', 12, 'bold'), bg=estilos.COLORS['white']).place(x=20, y=20)
         entry_codigo = tk.Entry(main_frame, font=('Segoe UI', 12), width=30)
         entry_codigo.place(x=180, y=20)
         entry_codigo.insert(0, codigo_actual)
         
-        tk.Label(main_frame, text="Nombre del Artículo:", 
-                font=('Segoe UI', 12, 'bold'), 
-                bg=estilos.COLORS['white']).place(x=20, y=60)
+        tk.Label(main_frame, text="Nombre del Artículo:", font=('Segoe UI', 12, 'bold'), bg=estilos.COLORS['white']).place(x=20, y=60)
         entry_articulo = tk.Entry(main_frame, font=('Segoe UI', 12), width=30)
         entry_articulo.place(x=180, y=60)
         entry_articulo.insert(0, articulo_actual)
         
-        tk.Label(main_frame, text="Precio de Venta:", 
-                font=('Segoe UI', 12, 'bold'), 
-                bg=estilos.COLORS['white']).place(x=20, y=100)
+        tk.Label(main_frame, text="Precio de Venta:", font=('Segoe UI', 12, 'bold'), bg=estilos.COLORS['white']).place(x=20, y=100)
         entry_precio = tk.Entry(main_frame, font=('Segoe UI', 12), width=30)
         entry_precio.place(x=180, y=100)
         entry_precio.insert(0, str(precio_actual))
         
-        tk.Label(main_frame, text="Costo del Producto:", 
-                font=('Segoe UI', 12, 'bold'), 
-                bg=estilos.COLORS['white']).place(x=20, y=140)
+        tk.Label(main_frame, text="Costo del Producto:", font=('Segoe UI', 12, 'bold'), bg=estilos.COLORS['white']).place(x=20, y=140)
         entry_costo = tk.Entry(main_frame, font=('Segoe UI', 12), width=30)
         entry_costo.place(x=180, y=140)
         entry_costo.insert(0, str(costo_actual))
         
-        tk.Label(main_frame, text="Stock:", 
-                font=('Segoe UI', 12, 'bold'), 
-                bg=estilos.COLORS['white']).place(x=20, y=180)
+        tk.Label(main_frame, text="Stock:", font=('Segoe UI', 12, 'bold'), bg=estilos.COLORS['white']).place(x=20, y=180)
         entry_stock = tk.Entry(main_frame, font=('Segoe UI', 12), width=30)
         entry_stock.place(x=180, y=180)
         entry_stock.insert(0, str(stock_actual))
         
-        tk.Label(main_frame, text="Estado:", 
-                font=('Segoe UI', 12, 'bold'), 
-                bg=estilos.COLORS['white']).place(x=20, y=220)
-        
-        # Combobox para estado
-        combo_estado = ttk.Combobox(main_frame, values=["activo", "inactivo"], 
-                                   font=('Segoe UI', 12), state="readonly", width=28)
+        tk.Label(main_frame, text="Estado:", font=('Segoe UI', 12, 'bold'), bg=estilos.COLORS['white']).place(x=20, y=220)
+        combo_estado = ttk.Combobox(main_frame, values=["activo", "inactivo"], font=('Segoe UI', 12), state="readonly", width=28)
         combo_estado.place(x=180, y=220)
         combo_estado.set(estado_actual)
         
@@ -505,69 +469,62 @@ class InventarioSimple(tk.Frame):
         self.frameimg_edit = tk.Frame(main_frame, bg='lightgray', relief='solid', bd=1)
         self.frameimg_edit.place(x=480, y=30, width=180, height=180)
         
-        # Mostrar imagen actual si existe
         if imagen_actual and os.path.exists(imagen_actual):
             try:
                 image = Image.open(imagen_actual)
                 image = image.resize((180, 180), Image.Resampling.LANCZOS)
                 self.current_image_tk = ImageTk.PhotoImage(image)
                 self.current_image_path = imagen_actual
-                
                 image_label = tk.Label(self.frameimg_edit, image=self.current_image_tk, bg='lightgray')
                 image_label.pack(expand=True, fill='both')
             except Exception:
-                img_placeholder = tk.Label(self.frameimg_edit, text="📷\nImagen\nActual", 
-                                          font=('Segoe UI', 12), bg='lightgray')
+                img_placeholder = tk.Label(self.frameimg_edit, text="📷\nImagen\nActual", font=('Segoe UI', 12), bg='lightgray')
                 img_placeholder.pack(expand=True)
         else:
-            img_placeholder = tk.Label(self.frameimg_edit, text="📷\nSin\nImagen", 
-                                      font=('Segoe UI', 12), bg='lightgray')
+            img_placeholder = tk.Label(self.frameimg_edit, text="📷\nSin\nImagen", font=('Segoe UI', 12), bg='lightgray')
             img_placeholder.pack(expand=True)
             self.current_image_path = imagen_actual
         
-        # Botón para cambiar imagen
+        # Botón Cambiar Imagen (justo debajo de la imagen)
         def cambiar_imagen():
             file_path = filedialog.askopenfilename(
                 title="Seleccionar nueva imagen",
-                filetypes=[
-                    ("Imágenes", "*.png *.jpg *.jpeg *.gif *.bmp"),
-                    ("PNG", "*.png"),
-                    ("JPEG", "*.jpg *.jpeg"),
-                    ("Todos los archivos", "*.*")
-                ]
+                filetypes=[("Imágenes", "*.png *.jpg *.jpeg *.gif *.bmp"), ("PNG", "*.png"), ("JPEG", "*.jpg *.jpeg"), ("Todos los archivos", "*.*")]
             )
-            
             if file_path:
                 try:
-                    # Redimensionar y guardar
                     image = Image.open(file_path)
                     image = image.resize((180, 180), Image.Resampling.LANCZOS)
-                    
                     image_name = os.path.basename(file_path)
                     image_save_path = os.path.join(self.image_folder, image_name)
                     image.save(image_save_path)
-                    
-                    # Mostrar nueva imagen
                     self.current_image_tk = ImageTk.PhotoImage(image)
                     self.current_image_path = image_save_path
-                    
-                    # Limpiar y mostrar
                     for widget in self.frameimg_edit.winfo_children():
                         widget.destroy()
-                    
                     image_label = tk.Label(self.frameimg_edit, image=self.current_image_tk, bg='lightgray')
                     image_label.pack(expand=True, fill='both')
-                    
                     messagebox.showinfo("✅ Éxito", "Imagen actualizada correctamente")
-                    
                 except Exception as e:
                     messagebox.showerror("❌ Error", f"Error al cargar imagen: {e}")
         
-        btn_imagen = ctk.CTkButton(main_frame, text='📁 Cambiar Imagen', 
-                                  font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
-                                  command=cambiar_imagen, width=180, height=35)
-        btn_imagen.place(x=480, y=230)
+        btn_imagen = ctk.CTkButton(
+            main_frame, 
+            text='📁 Cambiar Imagen', 
+            font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
+            command=cambiar_imagen, 
+            width=180, 
+            height=45,
+            corner_radius=10,
+            fg_color=estilos.COLORS['info'],
+            hover_color="#0ea5e9",
+            text_color=estilos.COLORS['white'],
+            border_width=1,
+            border_color=estilos.COLORS['primary']
+        )
+        btn_imagen.place(x=365, y=225)  # Justo debajo de la imagen
         
+        # Funciones de guardar, eliminar...
         def guardar_cambios():
             codigo = entry_codigo.get().strip()
             articulo = entry_articulo.get().strip()
@@ -576,25 +533,20 @@ class InventarioSimple(tk.Frame):
             stock_str = entry_stock.get().strip()
             estado = combo_estado.get()
             
-            # Validaciones
             if not all([codigo, articulo, precio_str, costo_str, stock_str, estado]):
                 messagebox.showerror("❌ Error", "Todos los campos deben ser completados")
                 return
-            
             try:
                 precio_float = float(precio_str)
                 costo_float = float(costo_str)
                 stock_int = int(stock_str)
-                
                 if precio_float <= 0 or costo_float <= 0 or stock_int < 0:
                     messagebox.showerror("❌ Error", "Los valores deben ser positivos")
                     return
-                    
             except ValueError:
                 messagebox.showerror("❌ Error", "Precio, costo y stock deben ser números válidos")
                 return
             
-            # Verificar si el código cambió y ya existe (MySQL)
             conn = get_connection()
             if not conn:
                 return
@@ -608,28 +560,18 @@ class InventarioSimple(tk.Frame):
                         cursor.close()
                         conn.close()
                         return
-            
-                # Usar imagen actual si no se cambió
                 imagen_path = getattr(self, 'current_image_path', imagen_actual)
-                
-                # Actualizar el producto
                 cursor.execute("""UPDATE articulos 
                                SET codigo = %s, articulo = %s, precio = %s, costo = %s, stock = %s, estado = %s, image_path = %s
                                WHERE articulo = %s""", 
                                (codigo, articulo, precio_float, costo_float, stock_int, estado, imagen_path, producto_seleccionado))
                 conn.commit()
-                
                 messagebox.showinfo('✅ Éxito', f'Producto "{articulo}" actualizado correctamente')
                 top.destroy()
-                
-                # Recargar la vista
                 self.cargar_articulos()
                 self.articulos_combobox()
-                
-                # Seleccionar el producto editado
                 self.comboboxbuscar.set(articulo)
                 self.actualizar_label()
-                
             except Exception as e:
                 print(f'Error al actualizar producto: {e}')
                 messagebox.showerror("❌ Error", f"Error al actualizar producto: {e}")
@@ -640,7 +582,6 @@ class InventarioSimple(tk.Frame):
         def eliminar_producto():
             respuesta = messagebox.askyesno("⚠️ Confirmar Eliminación", 
                                           f"¿Estás seguro de que quieres eliminar el producto '{articulo_actual}'?\n\nEsta acción no se puede deshacer.")
-            
             if respuesta:
                 conn = get_connection()
                 if not conn:
@@ -649,22 +590,16 @@ class InventarioSimple(tk.Frame):
                 try:
                     cursor.execute("DELETE FROM articulos WHERE articulo = %s", (producto_seleccionado,))
                     conn.commit()
-                    
                     messagebox.showinfo('✅ Éxito', f'Producto "{articulo_actual}" eliminado correctamente')
                     top.destroy()
-                    
-                    # Recargar la vista
                     self.cargar_articulos()
                     self.articulos_combobox()
-                    
-                    # Limpiar selección
                     self.comboboxbuscar.set("")
                     self.label1.config(text="📦 Artículo: --")
                     self.label2.config(text="💰 Precio: --")
                     self.label3.config(text="🏷️ Código: --")
                     self.label4.config(text="📊 Stock: --")
                     self.label5.config(text="❌ Estado: --")
-                    
                 except Exception as e:
                     print(f'Error al eliminar producto: {e}')
                     messagebox.showerror("❌ Error", f"Error al eliminar producto: {e}")
@@ -672,40 +607,35 @@ class InventarioSimple(tk.Frame):
                     cursor.close()
                     conn.close()
         
-        # Frame para botones
+        # Frame para botones (más abajo)
         btn_frame = tk.Frame(main_frame, bg=estilos.COLORS['white'])
-        btn_frame.place(x=20, y=320, width=640, height=60)
+        btn_frame.place(x=20, y=340, width=640, height=60)  # Antes y=320
         
-        # Botones
         btn_guardar = ctk.CTkButton(btn_frame, text='💾 Guardar Cambios', 
                                    font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
                                    command=guardar_cambios, width=150, height=40,
-                                   fg_color=estilos.COLORS['success'],
-                                   hover_color="#28a745")
+                                   fg_color=estilos.COLORS['success'])
         btn_guardar.pack(side='left', padx=10, pady=10)
         
         btn_eliminar = ctk.CTkButton(btn_frame, text='🗑️ Eliminar', 
                                     font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
                                     command=eliminar_producto, width=150, height=40,
-                                    fg_color="#dc3545",
-                                    hover_color="#c82333")
+                                    fg_color="#dc3545")
         btn_eliminar.pack(side='left', padx=10, pady=10)
         
         btn_cancelar = ctk.CTkButton(btn_frame, text='❌ Cancelar', 
                                     font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
                                     command=top.destroy, width=150, height=40,
-                                    fg_color=estilos.COLORS['secondary'],
-                                    hover_color="#6c757d")
+                                    fg_color=estilos.COLORS['secondary'])
         btn_cancelar.pack(side='right', padx=10, pady=10)
     
     def imprimir_etiqueta(self):
-        """Modal para imprimir etiqueta con código de barras y precio (con opción a PDF)"""
+        # (Misma función que antes, sin cambios)
         producto_seleccionado = self.comboboxbuscar.get().strip()
         if not producto_seleccionado:
             messagebox.showerror("❌ Error", "Selecciona un producto para imprimir su etiqueta")
             return
 
-        # Obtener datos del producto
         conn = get_connection()
         if not conn:
             return
@@ -725,77 +655,89 @@ class InventarioSimple(tk.Frame):
             cursor.close()
             conn.close()
 
-        # Ventana principal
         top = tk.Toplevel(self)
         top.title("🏷️ Imprimir / Generar Etiqueta")
-        top.geometry("600x720+300+50")
+        top.geometry("840x800+250+50")
+        top.minsize(700, 700)
         top.configure(bg=estilos.COLORS['white'])
-        top.resizable(False, False)
+        top.resizable(True, True)
         top.transient(self.master)
         top.grab_set()
         top.focus_set()
         top.lift()
 
-        # Título
-        title_label = tk.Label(top, text="🏷️ Vista Previa de Etiqueta", 
+        main_container = tk.Frame(top, bg=estilos.COLORS['white'])
+        main_container.pack(fill='both', expand=True, padx=10, pady=10)
+
+        title_label = tk.Label(main_container, text="🏷️ Vista Previa de Etiqueta", 
                               font=('Segoe UI', 18, 'bold'), 
                               bg=estilos.COLORS['white'],
                               fg=estilos.COLORS['primary'])
-        title_label.pack(pady=20)
+        title_label.pack(pady=(0, 10))
 
-        # Frame para la etiqueta (vista previa)
-        etiqueta_frame = tk.Frame(top, bg='white', relief='solid', bd=2)
-        etiqueta_frame.pack(pady=10, padx=50)
+        canvas_container = tk.Frame(main_container, bg='white', relief='solid', bd=1)
+        canvas_container.pack(fill='both', expand=True, padx=5, pady=5)
 
-        etiqueta_canvas = tk.Canvas(etiqueta_frame, width=400, height=250, bg='white', 
-                                    highlightthickness=1, highlightbackground='black')
-        etiqueta_canvas.pack(padx=15, pady=15)
+        canvas_etiqueta = tk.Canvas(canvas_container, bg='white', highlightthickness=0)
+        scrollbar_y = tk.Scrollbar(canvas_container, orient='vertical', command=canvas_etiqueta.yview)
+        scrollbar_x = tk.Scrollbar(canvas_container, orient='horizontal', command=canvas_etiqueta.xview)
+        canvas_etiqueta.configure(yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
 
-        # --- Dibujar la etiqueta en el canvas ---
-        def generar_codigo_barras_visual(canvas, codigo, x, y, width=200, height=40):
-            canvas.create_rectangle(x, y, x + width, y + height, fill='white', outline='white')
-            random.seed(hash(codigo))
-            bar_width = 2
-            current_x = x + 10
-            for _ in range(len(codigo) * 3):
-                if random.choice([True, False]):
-                    canvas.create_rectangle(current_x, y + 5, current_x + bar_width, y + height - 5, 
-                                            fill='black', outline='black')
-                current_x += bar_width
-                if current_x > x + width - 20:
-                    break
+        etiqueta_inner = tk.Frame(canvas_etiqueta, bg='white')
+        canvas_etiqueta.create_window((0, 0), window=etiqueta_inner, anchor='nw')
+        scrollbar_y.pack(side='right', fill='y')
+        scrollbar_x.pack(side='bottom', fill='x')
+        canvas_etiqueta.pack(side='left', fill='both', expand=True)
 
-        etiqueta_canvas.create_text(200, 40, text=articulo, font=('Arial', 14, 'bold'), fill='black', anchor='center', width=360)
-        generar_codigo_barras_visual(etiqueta_canvas, codigo, 100, 80, width=240, height=50)
-        etiqueta_canvas.create_text(200, 150, text=codigo, font=('Arial', 12), fill='black', anchor='center')
-        etiqueta_canvas.create_text(200, 200, text=f"${precio:.2f}", font=('Arial', 20, 'bold'), fill='black', anchor='center')
+        def dibujar_etiqueta(canvas_widget, width=500, height=300):
+            canvas_widget.delete('all')
+            canvas_widget.create_rectangle(0, 0, width, height, fill='white', outline='black', width=2)
+            canvas_widget.create_text(width//2, 50, text=articulo, font=('Arial', 16, 'bold'), fill='black', anchor='center', width=width-40)
+            def generar_codigo_barras(canvas, codigo, x, y, w=300, h=60):
+                canvas.create_rectangle(x, y, x+w, y+h, fill='white', outline='black')
+                random.seed(hash(codigo))
+                bar_width = 2.5
+                current_x = x + 10
+                for _ in range(len(codigo) * 4):
+                    if random.choice([True, False]):
+                        canvas.create_rectangle(current_x, y+5, current_x+bar_width, y+h-5, fill='black', outline='black')
+                    current_x += bar_width
+                    if current_x > x + w - 20:
+                        break
+            generar_codigo_barras(canvas_widget, codigo, (width-300)//2, 100, 300, 60)
+            canvas_widget.create_text(width//2, 180, text=codigo, font=('Arial', 14), fill='black', anchor='center')
+            canvas_widget.create_text(width//2, 230, text=f"${precio:.2f} USD", font=('Arial', 24, 'bold'), fill='black', anchor='center')
+            canvas_widget.configure(scrollregion=canvas_widget.bbox('all'))
 
-        # --- Información adicional ---
-        info_frame = tk.Frame(top, bg=estilos.COLORS['white'])
-        info_frame.pack(pady=5)
-        tk.Label(info_frame, text=f"📦 Producto: {articulo}", font=('Segoe UI', 12), bg=estilos.COLORS['white']).pack(anchor='w', padx=20)
-        tk.Label(info_frame, text=f"🏷️ Código: {codigo}", font=('Segoe UI', 12), bg=estilos.COLORS['white']).pack(anchor='w', padx=20)
-        tk.Label(info_frame, text=f"💰 Precio: ${precio:.2f}", font=('Segoe UI', 12), bg=estilos.COLORS['white']).pack(anchor='w', padx=20)
+        etiqueta_canvas = tk.Canvas(etiqueta_inner, width=500, height=300, bg='white', highlightthickness=1, highlightbackground='gray')
+        etiqueta_canvas.pack(padx=20, pady=20)
+        dibujar_etiqueta(etiqueta_canvas, 500, 300)
 
-        # --- Configuración de impresión ---
-        config_frame = tk.LabelFrame(top, text="⚙️ Configuración", 
-                                     font=('Segoe UI', 12, 'bold'), bg=estilos.COLORS['white'])
-        config_frame.pack(pady=10, padx=50, fill='x')
+        def on_inner_configure(event):
+            canvas_etiqueta.configure(scrollregion=canvas_etiqueta.bbox('all'))
+        etiqueta_inner.bind('<Configure>', on_inner_configure)
 
-        tk.Label(config_frame, text="Cantidad de etiquetas:", font=('Segoe UI', 11), 
-                 bg=estilos.COLORS['white']).grid(row=0, column=0, sticky='w', padx=10, pady=5)
+        info_frame = tk.Frame(main_container, bg=estilos.COLORS['white'])
+        info_frame.pack(fill='x', pady=5)
+        tk.Label(info_frame, text=f"📦 Producto: {articulo}", font=('Segoe UI', 12), bg=estilos.COLORS['white']).pack(anchor='w', padx=10)
+        tk.Label(info_frame, text=f"🏷️ Código: {codigo}", font=('Segoe UI', 12), bg=estilos.COLORS['white']).pack(anchor='w', padx=10)
+        tk.Label(info_frame, text=f"💰 Precio: ${precio:.2f} USD", font=('Segoe UI', 12), bg=estilos.COLORS['white']).pack(anchor='w', padx=10)
+
+        config_frame = tk.LabelFrame(main_container, text="⚙️ Configuración", font=('Segoe UI', 12, 'bold'), bg=estilos.COLORS['white'])
+        config_frame.pack(fill='x', pady=5, padx=5)
+        config_grid = tk.Frame(config_frame, bg=estilos.COLORS['white'])
+        config_grid.pack(pady=5, padx=10, fill='x')
+
+        tk.Label(config_grid, text="Cantidad:", font=('Segoe UI', 11), bg=estilos.COLORS['white']).grid(row=0, column=0, sticky='w', padx=5, pady=2)
         cantidad_var = tk.StringVar(value="1")
-        cantidad_entry = tk.Entry(config_frame, textvariable=cantidad_var, font=('Segoe UI', 11), width=10)
-        cantidad_entry.grid(row=0, column=1, padx=10, pady=5)
+        cantidad_entry = tk.Entry(config_grid, textvariable=cantidad_var, font=('Segoe UI', 11), width=8)
+        cantidad_entry.grid(row=0, column=1, padx=5, pady=2)
 
-        tk.Label(config_frame, text="Tamaño de etiqueta:", font=('Segoe UI', 11), 
-                 bg=estilos.COLORS['white']).grid(row=1, column=0, sticky='w', padx=10, pady=5)
-        tamaño_combo = ttk.Combobox(config_frame, values=["58mm x 40mm", "58mm x 60mm", "80mm x 40mm"], 
-                                    font=('Segoe UI', 11), state="readonly", width=15)
-        tamaño_combo.grid(row=1, column=1, padx=10, pady=5)
+        tk.Label(config_grid, text="Tamaño:", font=('Segoe UI', 11), bg=estilos.COLORS['white']).grid(row=0, column=2, sticky='w', padx=15, pady=2)
+        tamaño_combo = ttk.Combobox(config_grid, values=["58mm x 40mm", "58mm x 60mm", "80mm x 40mm"], font=('Segoe UI', 11), state="readonly", width=15)
+        tamaño_combo.grid(row=0, column=3, padx=5, pady=2)
         tamaño_combo.set("58mm x 40mm")
 
-        # --- Funciones para imprimir y generar PDF ---
         def enviar_a_impresora():
             try:
                 cantidad = int(cantidad_var.get())
@@ -803,7 +745,6 @@ class InventarioSimple(tk.Frame):
                     messagebox.showerror("❌ Error", "La cantidad debe ser mayor a 0")
                     return
                 tamaño = tamaño_combo.get()
-                # Simulación de impresión
                 progress_window = tk.Toplevel(top)
                 progress_window.title("🖨️ Imprimiendo...")
                 progress_window.geometry("300x150+400+200")
@@ -812,15 +753,11 @@ class InventarioSimple(tk.Frame):
                 progress_window.transient(top)
                 progress_window.grab_set()
 
-                tk.Label(progress_window, text="🖨️ Enviando a impresora térmica...", 
-                        font=('Segoe UI', 12, 'bold'), bg=estilos.COLORS['white']).pack(pady=20)
-
+                tk.Label(progress_window, text="🖨️ Enviando a impresora térmica...", font=('Segoe UI', 12, 'bold'), bg=estilos.COLORS['white']).pack(pady=20)
                 progress_bar = ttk.Progressbar(progress_window, mode='indeterminate')
                 progress_bar.pack(pady=10, padx=20, fill='x')
                 progress_bar.start()
-
-                status_label = tk.Label(progress_window, text=f"Imprimiendo {cantidad} etiqueta(s)...", 
-                                        font=('Segoe UI', 10), bg=estilos.COLORS['white'])
+                status_label = tk.Label(progress_window, text=f"Imprimiendo {cantidad} etiqueta(s)...", font=('Segoe UI', 10), bg=estilos.COLORS['white'])
                 status_label.pack(pady=10)
                 progress_window.update()
 
@@ -833,9 +770,7 @@ class InventarioSimple(tk.Frame):
                 progress_bar.stop()
                 progress_window.destroy()
 
-                messagebox.showinfo("✅ Éxito", 
-                                  f"Se enviaron {cantidad} etiqueta(s) a la impresora.\n"
-                                  f"Producto: {articulo}\nCódigo: {codigo}\nPrecio: ${precio:.2f}\nTamaño: {tamaño}")
+                messagebox.showinfo("✅ Éxito", f"Se enviaron {cantidad} etiqueta(s) a la impresora.\nProducto: {articulo}\nCódigo: {codigo}\nPrecio: ${precio:.2f} USD\nTamaño: {tamaño}")
                 top.destroy()
             except ValueError:
                 messagebox.showerror("❌ Error", "Cantidad inválida")
@@ -843,11 +778,9 @@ class InventarioSimple(tk.Frame):
                 messagebox.showerror("❌ Error", f"Error al imprimir: {e}")
 
         def generar_pdf_etiqueta():
-            """Genera un archivo PDF con la etiqueta del producto."""
             if not REPORTLAB_DISPONIBLE:
                 messagebox.showerror("❌ Error", "ReportLab no está instalado.\nEjecute: pip install reportlab")
                 return
-
             try:
                 cantidad = int(cantidad_var.get())
                 if cantidad <= 0:
@@ -857,7 +790,6 @@ class InventarioSimple(tk.Frame):
                 messagebox.showerror("❌ Error", "Cantidad inválida")
                 return
 
-            # Diálogo para guardar el archivo
             from tkinter import filedialog
             filename = filedialog.asksaveasfilename(
                 defaultextension=".pdf",
@@ -872,33 +804,29 @@ class InventarioSimple(tk.Frame):
                 from reportlab.pdfgen import canvas
                 from reportlab.lib.pagesizes import mm
                 from reportlab.lib import colors
+                import random
 
-                # Tamaño de etiqueta (según selección)
                 tamaño = tamaño_combo.get()
                 if "58mm x 40mm" in tamaño:
                     page_width, page_height = 58 * mm, 40 * mm
                 elif "58mm x 60mm" in tamaño:
                     page_width, page_height = 58 * mm, 60 * mm
-                else:  # 80mm x 40mm
+                else:
                     page_width, page_height = 80 * mm, 40 * mm
 
-                # Si la cantidad es >1, generamos varias páginas
                 c = canvas.Canvas(filename, pagesize=(page_width, page_height))
                 for _ in range(cantidad):
                     c.setPageSize((page_width, page_height))
                     margin = 2 * mm
                     w, h = page_width - 2 * margin, page_height - 2 * margin
 
-                    # Fondo blanco
                     c.setFillColor(colors.white)
                     c.rect(0, 0, page_width, page_height, fill=1)
 
-                    # Título (nombre del producto)
                     c.setFont("Helvetica-Bold", 10)
                     c.setFillColor(colors.black)
                     c.drawCentredString(page_width/2, h - 5*mm, articulo[:25])
 
-                    # Código de barras simulado (líneas)
                     random.seed(hash(codigo))
                     bar_y = 10 * mm
                     bar_height = 8 * mm
@@ -913,54 +841,45 @@ class InventarioSimple(tk.Frame):
                         if current_x > bar_left + bar_width_total:
                             break
 
-                    # Código numérico
                     c.setFont("Helvetica", 8)
                     c.drawCentredString(page_width/2, bar_y - 3*mm, codigo)
 
-                    # Precio
                     c.setFont("Helvetica-Bold", 14)
-                    c.setFillColor(colors.black)
-                    c.drawCentredString(page_width/2, 3*mm, f"${precio:.2f}")
+                    c.drawCentredString(page_width/2, 3*mm, f"${precio:.2f} USD")
 
-                    c.showPage()  # nueva página para la siguiente etiqueta
+                    c.showPage()
 
                 c.save()
                 messagebox.showinfo("✅ Éxito", f"PDF generado correctamente en:\n{filename}")
-                # Opcional: abrir el PDF
                 import os
                 if os.name == 'nt':
                     os.startfile(filename)
                 else:
                     os.system(f'xdg-open "{filename}"')
                 top.destroy()
-
             except Exception as e:
                 messagebox.showerror("❌ Error", f"Error al generar PDF: {e}")
 
-        # --- Botones (ahora tres: Imprimir, PDF y Cancelar) ---
-        btn_frame = tk.Frame(top, bg=estilos.COLORS['white'])
-        btn_frame.pack(pady=20)
+        btn_frame = tk.Frame(main_container, bg=estilos.COLORS['white'])
+        btn_frame.pack(fill='x', pady=10)
 
         btn_imprimir = ctk.CTkButton(btn_frame, text='🖨️ Imprimir Etiqueta', 
                                      font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
-                                     command=enviar_a_impresora, width=180, height=45,
-                                     fg_color=estilos.COLORS['success'],
-                                     hover_color="#28a745")
-        btn_imprimir.pack(side='left', padx=10)
+                                     command=enviar_a_impresora, width=170, height=45,
+                                     fg_color=estilos.COLORS['success'])
+        btn_imprimir.pack(side='left', padx=10, expand=True, fill='x')
 
         btn_pdf = ctk.CTkButton(btn_frame, text='📄 Generar PDF', 
                                 font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
-                                command=generar_pdf_etiqueta, width=180, height=45,
-                                fg_color=estilos.COLORS['info'],
-                                hover_color="#0ea5e9")
-        btn_pdf.pack(side='left', padx=10)
+                                command=generar_pdf_etiqueta, width=170, height=45,
+                                fg_color=estilos.COLORS['info'])
+        btn_pdf.pack(side='left', padx=10, expand=True, fill='x')
 
         btn_cancelar = ctk.CTkButton(btn_frame, text='❌ Cancelar', 
                                      font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
-                                     command=top.destroy, width=150, height=45,
-                                     fg_color=estilos.COLORS['danger'],
-                                     hover_color="#dc3545")
-        btn_cancelar.pack(side='right', padx=10)
+                                     command=top.destroy, width=170, height=45,
+                                     fg_color=estilos.COLORS['danger'])
+        btn_cancelar.pack(side='right', padx=10, expand=True, fill='x')
 
     def cargar_articulos(self, filtro=None):
         self.after(0, self._cargar_articulos, filtro)
@@ -968,16 +887,11 @@ class InventarioSimple(tk.Frame):
     def _cargar_articulos(self, filtro=None):
         for widget in self.scrollable_frame.winfo_children():
             widget.destroy()
-            
         conn = get_connection()
         if not conn:
-            error_label = tk.Label(self.scrollable_frame, 
-                                 text="❌ Error de conexión a la base de datos",
-                                 font=('Segoe UI', 12, 'bold'),
-                                 fg='red', bg=estilos.COLORS['white'])
+            error_label = tk.Label(self.scrollable_frame, text="❌ Error de conexión a la base de datos", font=('Segoe UI', 12, 'bold'), fg='red', bg=estilos.COLORS['white'])
             error_label.pack(pady=20)
             return
-            
         cursor = conn.cursor()
         try:
             query = "SELECT codigo, articulo, precio, image_path FROM articulos WHERE estado = 'activo'"
@@ -986,34 +900,25 @@ class InventarioSimple(tk.Frame):
                 query += " AND articulo LIKE %s"
                 params.append(f'%{filtro}%')
             query += " ORDER BY articulo"
-            
             cursor.execute(query, params)
             articulos = cursor.fetchall()
-            
             self.row = 0
             self.column = 0
-            
             for codigo, articulo, precio, image_path in articulos:
                 self.mostrar_articulo(codigo, articulo, precio, image_path)
-                
         except Exception as e:
             print(f"Error cargando artículos: {e}")
-            error_label = tk.Label(self.scrollable_frame, 
-                                 text=f"❌ Error cargando productos: {e}",
-                                 font=('Segoe UI', 12, 'bold'),
-                                 fg='red', bg=estilos.COLORS['white'])
+            error_label = tk.Label(self.scrollable_frame, text=f"❌ Error cargando productos: {e}", font=('Segoe UI', 12, 'bold'), fg='red', bg=estilos.COLORS['white'])
             error_label.pack(pady=20)
         finally:
             cursor.close()
             conn.close()
     
     def mostrar_articulo(self, codigo, articulo, precio, image_path):
-        # Frame para cada producto
         article_frame = tk.Frame(self.scrollable_frame, bg='white', relief='solid', bd=1, width=250, height=280)
         article_frame.grid(row=self.row, column=self.column, padx=15, pady=15, sticky="nsew")
-        article_frame.grid_propagate(False)  # Mantener el tamaño fijo
+        article_frame.grid_propagate(False)
         
-        # Imagen del producto
         if image_path and os.path.exists(image_path):
             try:
                 image = Image.open(image_path)
@@ -1024,46 +929,30 @@ class InventarioSimple(tk.Frame):
                 image_label.pack(pady=8)
                 image_label.bind("<Button-1>", lambda e: self.seleccionar_producto(articulo))
             except Exception:
-                placeholder = tk.Label(article_frame, text="📷", 
-                                     font=('Segoe UI', 60), bg='white', cursor='hand2')
+                placeholder = tk.Label(article_frame, text="📷", font=('Segoe UI', 60), bg='white', cursor='hand2')
                 placeholder.pack(pady=40)
                 placeholder.bind("<Button-1>", lambda e: self.seleccionar_producto(articulo))
         else:
-            placeholder = tk.Label(article_frame, text="📷", 
-                                 font=('Segoe UI', 60), bg='white', cursor='hand2')
+            placeholder = tk.Label(article_frame, text="📷", font=('Segoe UI', 60), bg='white', cursor='hand2')
             placeholder.pack(pady=40)
             placeholder.bind("<Button-1>", lambda e: self.seleccionar_producto(articulo))
         
-        # Información del producto
-        name_label = tk.Label(article_frame, text=articulo, bg='white', anchor='w', 
-                            wraplength=240, font=('Segoe UI', 11, 'bold'))
+        name_label = tk.Label(article_frame, text=articulo, bg='white', anchor='w', wraplength=240, font=('Segoe UI', 11, 'bold'))
         name_label.pack(side="top", fill='x', padx=8)
         
-        # Formatear precio según configuración de moneda
-        if formatear_precio:
-            try:
-                precio_formateado = formatear_precio(precio)
-            except Exception as e:
-                print(f"Error al formatear precio con formatear_precio(): {e}")
-                precio_formateado = f'${precio:.2f}'
-        else:
-            precio_formateado = f'${precio:.2f}'
-        
-        precio_label = tk.Label(article_frame, text=f'💰 {precio_formateado}', bg='white', 
-                              anchor='w', font=('Segoe UI', 10, 'bold'), fg=estilos.COLORS['success'])
+        precio_formateado = f"${precio:.2f} USD"
+        precio_label = tk.Label(article_frame, text=f'💰 {precio_formateado}', bg='white', anchor='w', font=('Segoe UI', 10, 'bold'), fg=estilos.COLORS['success'])
         precio_label.pack(side="top", fill='x', padx=8)
         
-        codigo_label = tk.Label(article_frame, text=f'🏷️ {codigo}', bg='white', 
-                              anchor='w', font=('Segoe UI', 9), fg=estilos.COLORS['secondary'])
+        codigo_label = tk.Label(article_frame, text=f'🏷️ {codigo}', bg='white', anchor='w', font=('Segoe UI', 9), fg=estilos.COLORS['secondary'])
         codigo_label.pack(side="bottom", fill='x', padx=8, pady=3)
         
         self.column += 1
-        if self.column > 3:  # 4 columnas
-            self.column = 0 
+        if self.column > 3:
+            self.column = 0
             self.row += 1
     
     def seleccionar_producto(self, articulo):
-        """Seleccionar producto al hacer click en la imagen"""
         self.comboboxbuscar.set(articulo)
         self.actualizar_label()
     
@@ -1074,7 +963,6 @@ class InventarioSimple(tk.Frame):
         articulo_seleccionado = self.comboboxbuscar.get()
         if not articulo_seleccionado:
             return
-        
         conn = get_connection()
         if not conn:
             return
@@ -1086,10 +974,9 @@ class InventarioSimple(tk.Frame):
             if resultado:
                 codigo, articulo, precio, costo, stock, estado = resultado
                 self.label1.config(text=f'📦 Artículo: {articulo}')
-                self.label2.config(text=f'💰 Precio: ${precio:.2f}')
+                self.label2.config(text=f'💰 Precio: ${precio:.2f} USD')
                 self.label3.config(text=f'🏷️ Código: {codigo}')
                 self.label4.config(text=f'📊 Stock: {stock} unidades')
-                
                 if estado.lower() == "activo":
                     self.label5.config(text=f'✅ Estado: {estado}', fg=estilos.COLORS['success'])
                 else:
@@ -1115,17 +1002,14 @@ class InventarioSimple(tk.Frame):
     
     def _filter_articulos(self):
         typed = self.comboboxbuscar.get()
-        
         if typed == '':
             data = self.articulos
         else:
             data = [item for item in self.articulos if typed.lower() in item.lower()]
-        
         if data:
             self.comboboxbuscar['values'] = data
             self.comboboxbuscar.event_generate('<Down>')
         else:
             self.comboboxbuscar['values'] = ['No se encontraron resultados']
             self.comboboxbuscar.event_generate('<Down>')
-            
         self.cargar_articulos(filtro=typed)

@@ -2,33 +2,25 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import customtkinter as ctk
 from modulos.utils.estilos_modernos import estilos
-from data.models import get_connection   # <--- Conexión MySQL
+from data.models import get_connection
 from datetime import datetime
 
-# Configurar CustomTkinter
 ctk.set_appearance_mode("light")
 
 class PedidosModerno(tk.Frame):
     
     def __init__(self, padre):
         super().__init__(padre, bg=estilos.COLORS['bg_primary'])
-        # Las tablas ya se crean en models.py, no es necesario crearlas aquí
-        # self.crear_tablas()  # <--- Eliminado
         self.widgets()
         self.cargar_pedidos()
         self.cargar_proveedores()
     
     def actualizar_moneda(self, nueva_moneda):
-        """Actualizar precios cuando cambia la moneda"""
         try:
             self.cargar_pedidos()
             print(f"Módulo Pedidos actualizado a moneda: {nueva_moneda}")
         except Exception as e:
             print(f"Error al actualizar moneda en Pedidos: {e}")
-    
-    # (Opcional) Método vacío para compatibilidad si se llama desde algún lado
-    def crear_tablas(self):
-        pass  # Las tablas ya existen en la base de datos MySQL
     
     def widgets(self):
         # Frame principal de formulario
@@ -36,7 +28,7 @@ class PedidosModerno(tk.Frame):
                                   font=('Segoe UI', 16, 'bold'), 
                                   bg=estilos.COLORS['white'],
                                   fg=estilos.COLORS['primary'])
-        form_frame.place(x=20, y=20, width=320, height=720)
+        form_frame.place(x=20, y=20, width=320, height=800)  # Altura aumentada
 
         # Título del formulario
         title_label = tk.Label(form_frame, text="📝 Pedido de Reposición", 
@@ -104,13 +96,13 @@ class PedidosModerno(tk.Frame):
                                    relief='solid', bd=1, wrap='word')
         self.observaciones.place(x=10, y=400, width=290, height=60)
 
-        # Botones modernos
+        # --- Botones modernos ---
         btn_crear = ctk.CTkButton(
             form_frame, 
             text="➕ Crear Pedido", 
             command=self.crear_pedido,
             width=240,
-            height=45,
+            height=40,
             corner_radius=10,
             font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
             fg_color=estilos.COLORS['success'],
@@ -123,7 +115,7 @@ class PedidosModerno(tk.Frame):
             text="✏️ Modificar Estado", 
             command=self.modificar_pedido,
             width=240,
-            height=45,
+            height=40,
             corner_radius=10,
             font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
             fg_color=estilos.COLORS['warning'],
@@ -136,20 +128,34 @@ class PedidosModerno(tk.Frame):
             text="📥 Recibir Pedido", 
             command=self.recibir_pedido,
             width=240,
-            height=45,
+            height=40,
             corner_radius=10,
             font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
             fg_color=estilos.COLORS['info'],
             hover_color="#0ea5e9"
         )
         btn_recibir.place(x=10, y=480)
-        
-        # Etiqueta de estadísticas dentro del form_frame
+
+        # --- NUEVO BOTÓN ELIMINAR PEDIDO ---
+        btn_eliminar = ctk.CTkButton(
+            form_frame,
+            text="🗑️ Eliminar Pedido",
+            command=self.eliminar_pedido,
+            width=240,
+            height=40,
+            corner_radius=10,
+            font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
+            fg_color=estilos.COLORS['danger'],
+            hover_color="#dc3545"
+        )
+        btn_eliminar.place(x=10, y=530)
+
+        # Etiqueta de estadísticas
         self.stats_label = tk.Label(form_frame, text="Total pedidos: 0", 
                                    font=('Segoe UI', 10, 'bold'), 
                                    bg=estilos.COLORS['white'],
                                    fg=estilos.COLORS['primary'])
-        self.stats_label.place(x=10, y=660)
+        self.stats_label.place(x=10, y=725)
 
         # Frame para la tabla
         table_frame = tk.LabelFrame(self, text="📋 Lista de Pedidos", 
@@ -197,7 +203,7 @@ class PedidosModerno(tk.Frame):
         scrollbar_y.config(command=self.tree.yview)
         scrollbar_x.config(command=self.tree.xview)
 
-        # Configurar encabezados
+        # Encabezados
         self.tree.heading("ID", text="🆔 ID")
         self.tree.heading("Cliente", text="🏢 Proveedor")
         self.tree.heading("Fecha", text="📅 Fecha")
@@ -205,7 +211,7 @@ class PedidosModerno(tk.Frame):
         self.tree.heading("Total", text="💰 Total")
         self.tree.heading("Observaciones", text="📝 Observaciones")
 
-        # Configurar columnas
+        # Columnas
         self.tree.column("ID", width=60, anchor="center")
         self.tree.column("Cliente", width=150, anchor="w")
         self.tree.column("Fecha", width=120, anchor="center")
@@ -215,9 +221,8 @@ class PedidosModerno(tk.Frame):
 
         self.tree.bind('<<TreeviewSelect>>', self.on_select)
 
-    # ==================== CARGAR PRODUCTOS (de articulos) ====================
+    # ==================== CARGAR PRODUCTOS ====================
     def cargar_productos(self):
-        """Cargar productos desde la tabla articulos de MySQL"""
         conn = get_connection()
         if not conn:
             return
@@ -233,24 +238,18 @@ class PedidosModerno(tk.Frame):
             cursor.close()
             conn.close()
 
-    # ==================== CARGAR PROVEEDORES (para combo o lista) ====================
+    # ==================== CARGAR PROVEEDORES (placeholder) ====================
     def cargar_proveedores(self):
-        """Cargar proveedores para el campo de entrada (solo para autocompletado)"""
-        # Esta función solo se usa para mostrar sugerencias, pero no hay un combobox específico.
-        # Se puede implementar si se desea autocompletar en entry.
-        pass
+        pass  # Para futura implementación de autocompletado
 
     # ==================== CREAR PEDIDO ====================
     def crear_pedido(self):
-        """Crear un nuevo pedido a proveedor en MySQL"""
         if not self.proveedor_entry.get().strip():
             messagebox.showerror("❌ Error", "Debe ingresar el nombre del proveedor")
             return
-        
         if not self.producto_combo.get():
             messagebox.showerror("❌ Error", "Debe seleccionar un producto")
             return
-            
         if not self.cantidad.get().strip() or not self.precio.get().strip():
             messagebox.showerror("❌ Error", "Debe ingresar cantidad y precio")
             return
@@ -272,22 +271,16 @@ class PedidosModerno(tk.Frame):
             if not conn:
                 return
             cursor = conn.cursor()
-            
-            # Crear pedido principal
             cursor.execute("""
                 INSERT INTO pedidos_proveedor (proveedor_nombre, fecha, estado, total, observaciones)
                 VALUES (%s, %s, %s, %s, %s)
             """, (proveedor_nombre, fecha, estado, subtotal, observaciones))
-            
             pedido_id = cursor.lastrowid
-            
-            # Crear detalle del pedido
             cursor.execute("""
                 INSERT INTO pedidos_detalle (pedido_id, producto_codigo, producto_nombre, 
                         cantidad, precio_unitario, subtotal)
                 VALUES (%s, %s, %s, %s, %s, %s)
             """, (pedido_id, producto_codigo, producto_nombre, cantidad, precio_unitario, subtotal))
-            
             conn.commit()
             messagebox.showinfo("✅ Éxito", f"Pedido creado correctamente\nTotal: ${subtotal:.2f}")
             self.limpiar_campos()
@@ -303,7 +296,6 @@ class PedidosModerno(tk.Frame):
 
     # ==================== CARGAR PEDIDOS ====================
     def cargar_pedidos(self):
-        """Cargar todos los pedidos desde MySQL"""
         self.limpiar_treeview()
         conn = get_connection()
         if not conn:
@@ -340,104 +332,20 @@ class PedidosModerno(tk.Frame):
 
     # ==================== SELECCIÓN ====================
     def on_select(self, event):
-        """Manejar selección en el Treeview"""
         selection = self.tree.selection()
         if selection:
             item = selection[0]
             values = self.tree.item(item, "values")
             if len(values) >= 6:
                 self.proveedor_entry.delete(0, 'end')
-                self.proveedor_entry.insert(0, values[1])  # Proveedor
-                self.estado_combo.set(values[3])  # Estado
+                self.proveedor_entry.insert(0, values[1])
+                self.estado_combo.set(values[3])
                 self.observaciones.delete("1.0", 'end')
-                self.observaciones.insert("1.0", values[5])  # Observaciones
-                # Cargar detalles del pedido
-                self.cargar_detalle_pedido(values[0])  # ID del pedido
+                self.observaciones.insert("1.0", values[5])
+                self.cargar_detalle_pedido(values[0])
 
-    # ==================== MODIFICAR ESTADO ====================
-    def modificar_pedido(self):
-        """Modificar estado del pedido seleccionado"""
-        if not self.tree.selection():
-            messagebox.showerror("❌ Error", "Seleccione un pedido para modificar")
-            return
-
-        try:
-            item = self.tree.selection()[0]
-            pedido_id = self.tree.item(item, "values")[0]
-            nuevo_estado = self.estado_combo.get()
-            observaciones = self.observaciones.get("1.0", "end-1c")
-
-            conn = get_connection()
-            if not conn:
-                return
-            cursor = conn.cursor()
-            cursor.execute("UPDATE pedidos_proveedor SET estado = %s, observaciones = %s WHERE id = %s",
-                          (nuevo_estado, observaciones, pedido_id))
-            conn.commit()
-            messagebox.showinfo("✅ Éxito", f"Estado del pedido actualizado a: {nuevo_estado}")
-            self.limpiar_campos()
-            self.limpiar_treeview()
-            self.cargar_pedidos()
-        except Exception as e:
-            messagebox.showerror("❌ Error", f"Error al modificar pedido: {e}")
-        finally:
-            cursor.close()
-            conn.close()
-
-    # ==================== RECIBIR PEDIDO (actualizar inventario) ====================
-    def recibir_pedido(self):
-        """Recibir pedido y actualizar inventario (stock en articulos)"""
-        if not self.tree.selection():
-            messagebox.showerror("❌ Error", "Seleccione un pedido para recibir")
-            return
-
-        item = self.tree.selection()[0]
-        pedido_id = self.tree.item(item, "values")[0]
-        proveedor_nombre = self.tree.item(item, "values")[1]
-        estado_actual = self.tree.item(item, "values")[3]
-        
-        if estado_actual == "Completado":
-            messagebox.showwarning("⚠️ Advertencia", "Este pedido ya fue recibido")
-            return
-        
-        respuesta = messagebox.askyesno("📥 Confirmar Recepción", 
-                                      f"¿Marcar como recibido el pedido del proveedor '{proveedor_nombre}'?\n\nEsto actualizará el inventario automáticamente.")
-        if not respuesta:
-            return
-
-        conn = get_connection()
-        if not conn:
-            return
-        cursor = conn.cursor()
-        try:
-            # Obtener detalles del pedido
-            cursor.execute("SELECT producto_codigo, cantidad FROM pedidos_detalle WHERE pedido_id = %s", (pedido_id,))
-            detalles = cursor.fetchall()
-            
-            # Actualizar stock en articulos para cada producto
-            for detalle in detalles:
-                producto_codigo, cantidad = detalle
-                cursor.execute("UPDATE articulos SET stock = stock + %s WHERE codigo = %s",
-                              (cantidad, producto_codigo))
-            
-            # Marcar pedido como completado
-            cursor.execute("UPDATE pedidos_proveedor SET estado = 'Completado' WHERE id = %s", (pedido_id,))
-            
-            conn.commit()
-            messagebox.showinfo("✅ Éxito", f"Pedido recibido correctamente\nInventario actualizado para {len(detalles)} producto(s)")
-            self.limpiar_campos()
-            self.limpiar_treeview()
-            self.cargar_pedidos()
-        except Exception as e:
-            conn.rollback()
-            messagebox.showerror("❌ Error", f"Error al recibir pedido: {e}")
-        finally:
-            cursor.close()
-            conn.close()
-
-    # ==================== CARGAR DETALLE DEL PEDIDO (para edición) ====================
+    # ==================== CARGAR DETALLE ====================
     def cargar_detalle_pedido(self, pedido_id):
-        """Cargar el primer producto del pedido en el formulario (para edición)"""
         conn = get_connection()
         if not conn:
             return
@@ -450,8 +358,6 @@ class PedidosModerno(tk.Frame):
             detalle = cursor.fetchone()
             if detalle:
                 producto_codigo, producto_nombre, cantidad, precio_unitario = detalle
-                producto_texto = f"{producto_codigo} - {producto_nombre}"
-                # Buscar en el combo y seleccionar
                 for producto in self.producto_combo['values']:
                     if producto_codigo in producto:
                         self.producto_combo.set(producto)
@@ -462,6 +368,115 @@ class PedidosModerno(tk.Frame):
                 self.precio.insert(0, str(precio_unitario))
         except Exception as e:
             print(f"Error al cargar detalle: {e}")
+        finally:
+            cursor.close()
+            conn.close()
+
+    # ==================== MODIFICAR ESTADO ====================
+    def modificar_pedido(self):
+        if not self.tree.selection():
+            messagebox.showerror("❌ Error", "Seleccione un pedido para modificar")
+            return
+        try:
+            item = self.tree.selection()[0]
+            pedido_id = self.tree.item(item, "values")[0]
+            nuevo_estado = self.estado_combo.get()
+            observaciones = self.observaciones.get("1.0", "end-1c")
+            conn = get_connection()
+            if not conn:
+                return
+            cursor = conn.cursor()
+            cursor.execute("UPDATE pedidos_proveedor SET estado = %s, observaciones = %s WHERE id = %s",
+                          (nuevo_estado, observaciones, pedido_id))
+            conn.commit()
+            messagebox.showinfo("✅ Éxito", f"Estado actualizado a: {nuevo_estado}")
+            self.limpiar_campos()
+            self.limpiar_treeview()
+            self.cargar_pedidos()
+        except Exception as e:
+            messagebox.showerror("❌ Error", f"Error al modificar pedido: {e}")
+        finally:
+            cursor.close()
+            conn.close()
+
+    # ==================== RECIBIR PEDIDO ====================
+    def recibir_pedido(self):
+        if not self.tree.selection():
+            messagebox.showerror("❌ Error", "Seleccione un pedido para recibir")
+            return
+        item = self.tree.selection()[0]
+        pedido_id = self.tree.item(item, "values")[0]
+        proveedor_nombre = self.tree.item(item, "values")[1]
+        estado_actual = self.tree.item(item, "values")[3]
+        if estado_actual == "Completado":
+            messagebox.showwarning("⚠️ Advertencia", "Este pedido ya fue recibido")
+            return
+        if not messagebox.askyesno("📥 Confirmar Recepción", 
+                                  f"¿Marcar como recibido el pedido de '{proveedor_nombre}'?"):
+            return
+        conn = get_connection()
+        if not conn:
+            return
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT producto_codigo, cantidad FROM pedidos_detalle WHERE pedido_id = %s", (pedido_id,))
+            detalles = cursor.fetchall()
+            for producto_codigo, cantidad in detalles:
+                cursor.execute("UPDATE articulos SET stock = stock + %s WHERE codigo = %s",
+                              (cantidad, producto_codigo))
+            cursor.execute("UPDATE pedidos_proveedor SET estado = 'Completado' WHERE id = %s", (pedido_id,))
+            conn.commit()
+            messagebox.showinfo("✅ Éxito", f"Pedido recibido. Stock actualizado para {len(detalles)} producto(s)")
+            self.limpiar_campos()
+            self.limpiar_treeview()
+            self.cargar_pedidos()
+        except Exception as e:
+            conn.rollback()
+            messagebox.showerror("❌ Error", f"Error al recibir pedido: {e}")
+        finally:
+            cursor.close()
+            conn.close()
+
+    # ==================== ELIMINAR PEDIDO (NUEVO) ====================
+    def eliminar_pedido(self):
+        """Elimina el pedido seleccionado (junto con sus detalles por ON DELETE CASCADE)"""
+        if not self.tree.selection():
+            messagebox.showerror("❌ Error", "Seleccione un pedido para eliminar")
+            return
+        
+        item = self.tree.selection()[0]
+        values = self.tree.item(item, "values")
+        if not values:
+            return
+        pedido_id = values[0]
+        proveedor = values[1]
+        estado = values[3]
+        
+        # No permitir eliminar pedidos ya completados (opcional)
+        if estado == "Completado":
+            if not messagebox.askyesno("⚠️ Advertencia", 
+                                      "Este pedido ya está completado. ¿Eliminarlo igualmente? Se perderá el historial."):
+                return
+        
+        if not messagebox.askyesno("⚠️ Confirmar Eliminación", 
+                                  f"¿Está seguro de que desea eliminar el pedido a '{proveedor}'?\n\nEsta acción no se puede deshacer."):
+            return
+        
+        conn = get_connection()
+        if not conn:
+            return
+        cursor = conn.cursor()
+        try:
+            # Al tener ON DELETE CASCADE en pedidos_detalle, solo necesitamos eliminar el padre
+            cursor.execute("DELETE FROM pedidos_proveedor WHERE id = %s", (pedido_id,))
+            conn.commit()
+            messagebox.showinfo("✅ Éxito", "Pedido eliminado correctamente")
+            self.limpiar_campos()
+            self.limpiar_treeview()
+            self.cargar_pedidos()
+        except Exception as e:
+            conn.rollback()
+            messagebox.showerror("❌ Error", f"Error al eliminar pedido: {e}")
         finally:
             cursor.close()
             conn.close()
