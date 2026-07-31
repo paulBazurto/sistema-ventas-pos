@@ -22,7 +22,7 @@ class ClientesModerno(tk.Frame):
             print(f"Error al actualizar moneda en Clientes: {e}")
         
     def widgets(self):
-        # Frame principal de formulario - ALTURA AUMENTADA A 680
+        # Frame principal de formulario - ALTURA AUMENTADA A 850
         form_frame = tk.LabelFrame(self, text="👤 Gestión de Clientes", 
                                   font=('Segoe UI', 16, 'bold'), 
                                   bg=estilos.COLORS['white'],
@@ -387,26 +387,28 @@ class ClientesModerno(tk.Frame):
                     cursor.close()
                     conn.close()
 
+        # Antes: btn_frame.place(x=20, y=440, width=400, height=80)  <- muy angosto, Cancelar se cortaba
+        # Ahora: ancho suficiente (410px de botones + margen) y centrado en main_frame
         btn_frame = tk.Frame(main_frame, bg=estilos.COLORS['white'])
-        btn_frame.place(x=20, y=440, width=400, height=80)
+        btn_frame.place(relx=0.5, y=440, width=430, height=80, anchor='n')
 
         btn_guardar = ctk.CTkButton(btn_frame, text='💾 Guardar Cambios', 
                                    font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
                                    command=guardar_modificado, width=180, height=40,
                                    fg_color=estilos.COLORS['success'],
                                    hover_color="#28a745")
-        btn_guardar.pack(side='left', padx=5, pady=10)
+        btn_guardar.pack(side='left', padx=4, pady=10)
 
         btn_eliminar = ctk.CTkButton(btn_frame, text='🗑️ Eliminar', 
                                     font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
                                     command=eliminar_cliente, width=100, height=40,
                                     fg_color=estilos.COLORS['danger'],
                                     hover_color="#dc3545")
-        btn_eliminar.pack(side='left', padx=5, pady=10)
+        btn_eliminar.pack(side='left', padx=4, pady=10)
 
         btn_cancelar = ctk.CTkButton(btn_frame, text='❌ Cancelar', 
                                     font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
                                     command=top_modificar.destroy, width=100, height=40,
                                     fg_color=estilos.COLORS['secondary'],
                                     hover_color="#6c757d")
-        btn_cancelar.pack(side='right', padx=5, pady=10)
+        btn_cancelar.pack(side='left', padx=4, pady=10)

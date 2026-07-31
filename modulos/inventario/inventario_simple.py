@@ -10,6 +10,17 @@ import os
 import random
 import time
 
+# Import para reportlab (generación de PDF)
+try:
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import mm, A6, landscape
+    from reportlab.lib import colors
+    from reportlab.lib.units import mm
+    REPORTLAB_DISPONIBLE = True
+except ImportError:
+    REPORTLAB_DISPONIBLE = False
+    print("⚠️ ReportLab no instalado. Para generar PDF ejecuta: pip install reportlab")
+
 # Import único a nivel de módulo, con fallback si el gestor de configuración no existe
 try:
     from modulos.configuracion.gestor_configuracion import formatear_precio
@@ -688,14 +699,12 @@ class InventarioSimple(tk.Frame):
         btn_cancelar.pack(side='right', padx=10, pady=10)
     
     def imprimir_etiqueta(self):
-        """Modal para imprimir etiqueta con código de barras y precio"""
-        # Verificar que hay un producto seleccionado
+        """Modal para imprimir etiqueta con código de barras y precio (con opción a PDF)"""
         producto_seleccionado = self.comboboxbuscar.get().strip()
-        
         if not producto_seleccionado:
             messagebox.showerror("❌ Error", "Selecciona un producto para imprimir su etiqueta")
             return
-        
+
         # Obtener datos del producto
         conn = get_connection()
         if not conn:
@@ -715,139 +724,86 @@ class InventarioSimple(tk.Frame):
         finally:
             cursor.close()
             conn.close()
-        
-        # Crear ventana modal para etiqueta
+
+        # Ventana principal
         top = tk.Toplevel(self)
-        top.title("🏷️ Imprimir Etiqueta")
-        top.geometry("600x650+300+50")
+        top.title("🏷️ Imprimir / Generar Etiqueta")
+        top.geometry("600x720+300+50")
         top.configure(bg=estilos.COLORS['white'])
         top.resizable(False, False)
-        
         top.transient(self.master)
         top.grab_set()
         top.focus_set()
         top.lift()
-        
+
         # Título
         title_label = tk.Label(top, text="🏷️ Vista Previa de Etiqueta", 
                               font=('Segoe UI', 18, 'bold'), 
                               bg=estilos.COLORS['white'],
                               fg=estilos.COLORS['primary'])
         title_label.pack(pady=20)
-        
-        # Frame principal para la etiqueta
+
+        # Frame para la etiqueta (vista previa)
         etiqueta_frame = tk.Frame(top, bg='white', relief='solid', bd=2)
-        etiqueta_frame.pack(pady=20, padx=50)
-        
-        # Simular etiqueta térmica (58mm de ancho típico) - Más grande
-        etiqueta_canvas = tk.Canvas(etiqueta_frame, width=400, height=250, bg='white', highlightthickness=1, highlightbackground='black')
+        etiqueta_frame.pack(pady=10, padx=50)
+
+        etiqueta_canvas = tk.Canvas(etiqueta_frame, width=400, height=250, bg='white', 
+                                    highlightthickness=1, highlightbackground='black')
         etiqueta_canvas.pack(padx=15, pady=15)
-        
-        # Generar código de barras visual (simulado)
+
+        # --- Dibujar la etiqueta en el canvas ---
         def generar_codigo_barras_visual(canvas, codigo, x, y, width=200, height=40):
-            """Genera una representación visual del código de barras"""
-            # Limpiar área
             canvas.create_rectangle(x, y, x + width, y + height, fill='white', outline='white')
-            
-            # Crear barras simuladas del código de barras
-            random.seed(hash(codigo))  # Seed basado en el código para consistencia
-            
+            random.seed(hash(codigo))
             bar_width = 2
             current_x = x + 10
-            
-            for i in range(0, len(codigo) * 3):  # Múltiples barras por dígito
-                if random.choice([True, False]):  # Barra negra o espacio
+            for _ in range(len(codigo) * 3):
+                if random.choice([True, False]):
                     canvas.create_rectangle(current_x, y + 5, current_x + bar_width, y + height - 5, 
-                                          fill='black', outline='black')
+                                            fill='black', outline='black')
                 current_x += bar_width
                 if current_x > x + width - 20:
                     break
-        
-        # Dibujar contenido de la etiqueta
-        # Nombre del producto
-        etiqueta_canvas.create_text(200, 40, text=articulo, 
-                                   font=('Arial', 14, 'bold'), 
-                                   fill='black', anchor='center', width=360)
-        
-        # Código de barras visual
+
+        etiqueta_canvas.create_text(200, 40, text=articulo, font=('Arial', 14, 'bold'), fill='black', anchor='center', width=360)
         generar_codigo_barras_visual(etiqueta_canvas, codigo, 100, 80, width=240, height=50)
-        
-        # Código numérico debajo del código de barras
-        etiqueta_canvas.create_text(200, 150, text=codigo, 
-                                   font=('Arial', 12), 
-                                   fill='black', anchor='center')
-        
-        # Precio
-        etiqueta_canvas.create_text(200, 200, text=f"${precio:.2f}", 
-                                   font=('Arial', 20, 'bold'), 
-                                   fill='black', anchor='center')
-        
-        # Información adicional
+        etiqueta_canvas.create_text(200, 150, text=codigo, font=('Arial', 12), fill='black', anchor='center')
+        etiqueta_canvas.create_text(200, 200, text=f"${precio:.2f}", font=('Arial', 20, 'bold'), fill='black', anchor='center')
+
+        # --- Información adicional ---
         info_frame = tk.Frame(top, bg=estilos.COLORS['white'])
-        info_frame.pack(pady=10)
-        
-        tk.Label(info_frame, text=f"📦 Producto: {articulo}", 
-                font=('Segoe UI', 12), bg=estilos.COLORS['white']).pack(anchor='w', padx=20)
-        tk.Label(info_frame, text=f"🏷️ Código: {codigo}", 
-                font=('Segoe UI', 12), bg=estilos.COLORS['white']).pack(anchor='w', padx=20)
-        tk.Label(info_frame, text=f"💰 Precio: ${precio:.2f}", 
-                font=('Segoe UI', 12), bg=estilos.COLORS['white']).pack(anchor='w', padx=20)
-        
-        # Configuración de impresión
-        config_frame = tk.LabelFrame(top, text="⚙️ Configuración de Impresión", 
-                                   font=('Segoe UI', 12, 'bold'), 
-                                   bg=estilos.COLORS['white'])
+        info_frame.pack(pady=5)
+        tk.Label(info_frame, text=f"📦 Producto: {articulo}", font=('Segoe UI', 12), bg=estilos.COLORS['white']).pack(anchor='w', padx=20)
+        tk.Label(info_frame, text=f"🏷️ Código: {codigo}", font=('Segoe UI', 12), bg=estilos.COLORS['white']).pack(anchor='w', padx=20)
+        tk.Label(info_frame, text=f"💰 Precio: ${precio:.2f}", font=('Segoe UI', 12), bg=estilos.COLORS['white']).pack(anchor='w', padx=20)
+
+        # --- Configuración de impresión ---
+        config_frame = tk.LabelFrame(top, text="⚙️ Configuración", 
+                                     font=('Segoe UI', 12, 'bold'), bg=estilos.COLORS['white'])
         config_frame.pack(pady=10, padx=50, fill='x')
-        
-        # Cantidad de etiquetas
-        tk.Label(config_frame, text="Cantidad de etiquetas:", 
-                font=('Segoe UI', 11), bg=estilos.COLORS['white']).grid(row=0, column=0, sticky='w', padx=10, pady=5)
-        
+
+        tk.Label(config_frame, text="Cantidad de etiquetas:", font=('Segoe UI', 11), 
+                 bg=estilos.COLORS['white']).grid(row=0, column=0, sticky='w', padx=10, pady=5)
         cantidad_var = tk.StringVar(value="1")
-        cantidad_entry = tk.Entry(config_frame, textvariable=cantidad_var, 
-                                font=('Segoe UI', 11), width=10)
+        cantidad_entry = tk.Entry(config_frame, textvariable=cantidad_var, font=('Segoe UI', 11), width=10)
         cantidad_entry.grid(row=0, column=1, padx=10, pady=5)
-        
-        # Tamaño de etiqueta
-        tk.Label(config_frame, text="Tamaño de etiqueta:", 
-                font=('Segoe UI', 11), bg=estilos.COLORS['white']).grid(row=1, column=0, sticky='w', padx=10, pady=5)
-        
+
+        tk.Label(config_frame, text="Tamaño de etiqueta:", font=('Segoe UI', 11), 
+                 bg=estilos.COLORS['white']).grid(row=1, column=0, sticky='w', padx=10, pady=5)
         tamaño_combo = ttk.Combobox(config_frame, values=["58mm x 40mm", "58mm x 60mm", "80mm x 40mm"], 
-                                   font=('Segoe UI', 11), state="readonly", width=15)
+                                    font=('Segoe UI', 11), state="readonly", width=15)
         tamaño_combo.grid(row=1, column=1, padx=10, pady=5)
         tamaño_combo.set("58mm x 40mm")
-        
+
+        # --- Funciones para imprimir y generar PDF ---
         def enviar_a_impresora():
-            """Función para enviar etiqueta a impresora térmica"""
             try:
                 cantidad = int(cantidad_var.get())
                 if cantidad <= 0:
                     messagebox.showerror("❌ Error", "La cantidad debe ser mayor a 0")
                     return
-                    
                 tamaño = tamaño_combo.get()
-                
-                # Crear contenido de la etiqueta para impresión (simulado)
-                etiqueta_content = f"""
-╔══════════════════════════════════════╗
-║            ETIQUETA PRODUCTO         ║
-╠══════════════════════════════════════╣
-║                                      ║
-║  {articulo[:30].center(30)}          ║
-║                                      ║
-║  ████ ██ █ ██ █ ██ ████ █ ██ ████    ║
-║  ████ ██ █ ██ █ ██ ████ █ ██ ████    ║
-║  ████ ██ █ ██ █ ██ ████ █ ██ ████    ║
-║                                      ║
-║           {codigo.center(20)}        ║
-║                                      ║
-║              ${precio:.2f}           ║
-║                                      ║
-╚══════════════════════════════════════╝
-                """
-                
                 # Simulación de impresión
-                # Mostrar progreso
                 progress_window = tk.Toplevel(top)
                 progress_window.title("🖨️ Imprimiendo...")
                 progress_window.geometry("300x150+400+200")
@@ -855,68 +811,157 @@ class InventarioSimple(tk.Frame):
                 progress_window.resizable(False, False)
                 progress_window.transient(top)
                 progress_window.grab_set()
-                
+
                 tk.Label(progress_window, text="🖨️ Enviando a impresora térmica...", 
-                        font=('Segoe UI', 12, 'bold'), 
-                        bg=estilos.COLORS['white']).pack(pady=20)
-                
+                        font=('Segoe UI', 12, 'bold'), bg=estilos.COLORS['white']).pack(pady=20)
+
                 progress_bar = ttk.Progressbar(progress_window, mode='indeterminate')
                 progress_bar.pack(pady=10, padx=20, fill='x')
                 progress_bar.start()
-                
+
                 status_label = tk.Label(progress_window, text=f"Imprimiendo {cantidad} etiqueta(s)...", 
-                                      font=('Segoe UI', 10), 
-                                      bg=estilos.COLORS['white'])
+                                        font=('Segoe UI', 10), bg=estilos.COLORS['white'])
                 status_label.pack(pady=10)
-                
                 progress_window.update()
-                
-                # Simular tiempo de impresión
+
+                import time
                 for i in range(cantidad):
-                    time.sleep(1)  # Simular tiempo de impresión por etiqueta
+                    time.sleep(1)
                     status_label.config(text=f"Imprimiendo etiqueta {i+1} de {cantidad}...")
                     progress_window.update()
-                
+
                 progress_bar.stop()
                 progress_window.destroy()
-                
-                # Aquí iría el código real para impresora térmica (comentado)
-                # import win32print
-                # ...
-                
+
                 messagebox.showinfo("✅ Éxito", 
-                                  f"Se enviaron {cantidad} etiqueta(s) a la impresora térmica.\n\n"
-                                  f"Producto: {articulo}\n"
-                                  f"Código: {codigo}\n"
-                                  f"Precio: ${precio:.2f}\n"
-                                  f"Tamaño: {tamaño}")
-                
+                                  f"Se enviaron {cantidad} etiqueta(s) a la impresora.\n"
+                                  f"Producto: {articulo}\nCódigo: {codigo}\nPrecio: ${precio:.2f}\nTamaño: {tamaño}")
                 top.destroy()
-                
             except ValueError:
-                messagebox.showerror("❌ Error", "La cantidad debe ser un número válido")
+                messagebox.showerror("❌ Error", "Cantidad inválida")
             except Exception as e:
                 messagebox.showerror("❌ Error", f"Error al imprimir: {e}")
-        
-        # Frame para botones
+
+        def generar_pdf_etiqueta():
+            """Genera un archivo PDF con la etiqueta del producto."""
+            if not REPORTLAB_DISPONIBLE:
+                messagebox.showerror("❌ Error", "ReportLab no está instalado.\nEjecute: pip install reportlab")
+                return
+
+            try:
+                cantidad = int(cantidad_var.get())
+                if cantidad <= 0:
+                    messagebox.showerror("❌ Error", "La cantidad debe ser mayor a 0")
+                    return
+            except ValueError:
+                messagebox.showerror("❌ Error", "Cantidad inválida")
+                return
+
+            # Diálogo para guardar el archivo
+            from tkinter import filedialog
+            filename = filedialog.asksaveasfilename(
+                defaultextension=".pdf",
+                filetypes=[("Archivos PDF", "*.pdf"), ("Todos los archivos", "*.*")],
+                title="Guardar etiqueta como PDF",
+                initialfile=f"etiqueta_{codigo}.pdf"
+            )
+            if not filename:
+                return
+
+            try:
+                from reportlab.pdfgen import canvas
+                from reportlab.lib.pagesizes import mm
+                from reportlab.lib import colors
+
+                # Tamaño de etiqueta (según selección)
+                tamaño = tamaño_combo.get()
+                if "58mm x 40mm" in tamaño:
+                    page_width, page_height = 58 * mm, 40 * mm
+                elif "58mm x 60mm" in tamaño:
+                    page_width, page_height = 58 * mm, 60 * mm
+                else:  # 80mm x 40mm
+                    page_width, page_height = 80 * mm, 40 * mm
+
+                # Si la cantidad es >1, generamos varias páginas
+                c = canvas.Canvas(filename, pagesize=(page_width, page_height))
+                for _ in range(cantidad):
+                    c.setPageSize((page_width, page_height))
+                    margin = 2 * mm
+                    w, h = page_width - 2 * margin, page_height - 2 * margin
+
+                    # Fondo blanco
+                    c.setFillColor(colors.white)
+                    c.rect(0, 0, page_width, page_height, fill=1)
+
+                    # Título (nombre del producto)
+                    c.setFont("Helvetica-Bold", 10)
+                    c.setFillColor(colors.black)
+                    c.drawCentredString(page_width/2, h - 5*mm, articulo[:25])
+
+                    # Código de barras simulado (líneas)
+                    random.seed(hash(codigo))
+                    bar_y = 10 * mm
+                    bar_height = 8 * mm
+                    bar_left = 10 * mm
+                    bar_width_total = page_width - 20 * mm
+                    bar_width = 0.8 * mm
+                    current_x = bar_left
+                    for _ in range(len(codigo) * 4):
+                        if random.choice([True, False]):
+                            c.rect(current_x, bar_y, bar_width, bar_height, fill=1, stroke=0)
+                        current_x += bar_width
+                        if current_x > bar_left + bar_width_total:
+                            break
+
+                    # Código numérico
+                    c.setFont("Helvetica", 8)
+                    c.drawCentredString(page_width/2, bar_y - 3*mm, codigo)
+
+                    # Precio
+                    c.setFont("Helvetica-Bold", 14)
+                    c.setFillColor(colors.black)
+                    c.drawCentredString(page_width/2, 3*mm, f"${precio:.2f}")
+
+                    c.showPage()  # nueva página para la siguiente etiqueta
+
+                c.save()
+                messagebox.showinfo("✅ Éxito", f"PDF generado correctamente en:\n{filename}")
+                # Opcional: abrir el PDF
+                import os
+                if os.name == 'nt':
+                    os.startfile(filename)
+                else:
+                    os.system(f'xdg-open "{filename}"')
+                top.destroy()
+
+            except Exception as e:
+                messagebox.showerror("❌ Error", f"Error al generar PDF: {e}")
+
+        # --- Botones (ahora tres: Imprimir, PDF y Cancelar) ---
         btn_frame = tk.Frame(top, bg=estilos.COLORS['white'])
         btn_frame.pack(pady=20)
-        
-        # Botones
+
         btn_imprimir = ctk.CTkButton(btn_frame, text='🖨️ Imprimir Etiqueta', 
-                                   font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
-                                   command=enviar_a_impresora, width=200, height=45,
-                                   fg_color=estilos.COLORS['success'],
-                                   hover_color="#28a745")
+                                     font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
+                                     command=enviar_a_impresora, width=180, height=45,
+                                     fg_color=estilos.COLORS['success'],
+                                     hover_color="#28a745")
         btn_imprimir.pack(side='left', padx=10)
-        
+
+        btn_pdf = ctk.CTkButton(btn_frame, text='📄 Generar PDF', 
+                                font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
+                                command=generar_pdf_etiqueta, width=180, height=45,
+                                fg_color=estilos.COLORS['info'],
+                                hover_color="#0ea5e9")
+        btn_pdf.pack(side='left', padx=10)
+
         btn_cancelar = ctk.CTkButton(btn_frame, text='❌ Cancelar', 
-                                    font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
-                                    command=top.destroy, width=150, height=45,
-                                    fg_color=estilos.COLORS['danger'],
-                                    hover_color="#dc3545")
+                                     font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
+                                     command=top.destroy, width=150, height=45,
+                                     fg_color=estilos.COLORS['danger'],
+                                     hover_color="#dc3545")
         btn_cancelar.pack(side='right', padx=10)
-    
+
     def cargar_articulos(self, filtro=None):
         self.after(0, self._cargar_articulos, filtro)
     
@@ -995,8 +1040,6 @@ class InventarioSimple(tk.Frame):
         name_label.pack(side="top", fill='x', padx=8)
         
         # Formatear precio según configuración de moneda
-        # CORREGIDO: import movido al inicio del módulo (no se repite en cada tarjeta)
-        # y se captura solo la excepción esperada, no cualquier error con "except:"
         if formatear_precio:
             try:
                 precio_formateado = formatear_precio(precio)
