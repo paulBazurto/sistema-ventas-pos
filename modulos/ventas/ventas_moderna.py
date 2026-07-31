@@ -310,22 +310,7 @@ class VentasModerna(tk.Frame):
             return
         cursor = conn.cursor()
         try:
-            cursor.execute("SELECT COUNT(*) FROM clientes")
-            count = cursor.fetchone()[0]
-            if count == 0:
-                clientes_ejemplo = [
-                    ("Cliente Ejemplo 1", "cliente1@email.com", "123-456-7890"),
-                    ("Cliente Ejemplo 2", "cliente2@email.com", "123-456-7891"),
-                    ("Cliente Ejemplo 3", "cliente3@email.com", "123-456-7892"),
-                    ("Cliente General", "general@tienda.com", "123-456-0000")
-                ]
-                cursor.executemany(
-                    "INSERT INTO clientes (nombre, correo, celular) VALUES (%s, %s, %s)",
-                    clientes_ejemplo
-                )
-                conn.commit()
-                print("Clientes de ejemplo creados")
-            
+            # Solo cargar clientes existentes, sin insertar datos de ejemplo
             cursor.execute("SELECT nombre FROM clientes")
             self.clientes = [row[0] for row in cursor.fetchall()]
             self.entry_cliente['values'] = self.clientes if self.clientes else ["Cliente General"]
