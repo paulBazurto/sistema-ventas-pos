@@ -19,7 +19,7 @@ class Manager(Tk):
         self._cerrar_sesion = False  # Cambiamos a _cerrar_sesion para evitar conflicto con método
         
         self.title("🏪 Mi Tienda - Sistema de Ventas Moderno")
-        self.geometry("1400x900+200+50")
+        self.geometry("1500x900+200+50")
         self.resizable(True, True)
         self.minsize(1200, 800)
         

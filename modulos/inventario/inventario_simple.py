@@ -33,7 +33,7 @@ ctk.set_default_color_theme("blue")
 
 class InventarioSimple(tk.Frame):
 
-    # ==================== NUEVO: CATEGORÍAS DISPONIBLES ====================
+    # ==================== CATEGORÍAS DISPONIBLES ====================
     CATEGORIAS = [
         "Alimentos y Bebidas",
         "Cuidado Personal e Higiene",
@@ -52,7 +52,12 @@ class InventarioSimple(tk.Frame):
     def __init__(self, padre):
         super().__init__(padre)
         self.configure(bg=estilos.COLORS['bg_primary'])
-        self.asegurar_columna_categoria()  # NUEVO: garantiza que la columna exista en la BD
+        self.asegurar_columna_categoria()  # garantiza que la columna exista en la BD
+
+        # NUEVO: guarda solo el texto que el usuario escribe para buscar,
+        # separado de lo que queda en el combobox al seleccionar un producto puntual.
+        self.texto_busqueda_actual = ""
+
         self.widgets()
         self.articulos_combobox()
         self.cargar_articulos()
@@ -65,13 +70,12 @@ class InventarioSimple(tk.Frame):
     def actualizar_moneda(self, nueva_moneda):
         """Actualizar precios cuando cambia la moneda"""
         try:
-            # Recargar artículos con nueva moneda
             self.cargar_articulos()
             print(f"Módulo Inventario actualizado a moneda: {nueva_moneda}")
         except Exception as e:
             print(f"Error al actualizar moneda en Inventario: {e}")
 
-    # ==================== NUEVO: MIGRACIÓN DE COLUMNA CATEGORÍA ====================
+    # ==================== MIGRACIÓN DE COLUMNA CATEGORÍA ====================
     def asegurar_columna_categoria(self):
         """Agrega la columna 'categoria' a la tabla articulos si todavía no existe."""
         conn = get_connection()
@@ -85,7 +89,6 @@ class InventarioSimple(tk.Frame):
             conn.commit()
             print("✅ Columna 'categoria' creada en articulos")
         except Exception:
-            # La columna ya existe (o el motor no soporta IF NOT EXISTS) -> se ignora
             pass
         finally:
             cursor.close()
@@ -96,24 +99,21 @@ class InventarioSimple(tk.Frame):
         canvas_articulos = tk.LabelFrame(self, text="📦 Inventario de Productos", 
                                         font=('Segoe UI', 15, 'bold'), 
                                         bg=estilos.COLORS['white'])
-        canvas_articulos.place(x=300, y=10, width=1100, height=740)
+        canvas_articulos.place(x=300, y=10, width=1200, height=740)
         
         # Canvas scrollable con configuración mejorada
         self.canvas = tk.Canvas(canvas_articulos, bg=estilos.COLORS['white'], highlightthickness=0)
         self.scrollbar = tk.Scrollbar(canvas_articulos, orient='vertical', command=self.canvas.yview)
         self.scrollable_frame = tk.Frame(self.canvas, bg=estilos.COLORS['white'])
         
-        # Configurar el scroll correctamente
         self.scrollable_frame.bind(
             "<Configure>",
             lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
         )
         
-        # Crear ventana en el canvas
         self.canvas_window = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
         
-        # Configurar eventos de scroll con mouse
         def _on_mousewheel(event):
             self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
         
@@ -123,20 +123,16 @@ class InventarioSimple(tk.Frame):
         def _unbind_from_mousewheel(event):
             self.canvas.unbind_all("<MouseWheel>")
         
-        # Bind eventos de mouse
         self.canvas.bind('<Enter>', _bind_to_mousewheel)
         self.canvas.bind('<Leave>', _unbind_from_mousewheel)
         
-        # Configurar el ancho del frame interno
         def configure_scroll_region(event):
             self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-            # Ajustar el ancho del frame interno al ancho del canvas
             canvas_width = event.width
             self.canvas.itemconfig(self.canvas_window, width=canvas_width)
         
         self.canvas.bind('<Configure>', configure_scroll_region)
         
-        # Empaquetar elementos
         self.scrollbar.pack(side='right', fill='y')
         self.canvas.pack(side="left", fill="both", expand=True, padx=10, pady=10)
         
@@ -148,10 +144,9 @@ class InventarioSimple(tk.Frame):
         
         self.comboboxbuscar = ttk.Combobox(search_frame, font=('Segoe UI', 12))
         self.comboboxbuscar.place(x=5, y=5, width=260, height=40)
-        self.comboboxbuscar.bind('<<ComboboxSelected>>', self.on_combobox_select)
         self.comboboxbuscar.bind('<KeyRelease>', self.filtrar_articulos)
 
-        # ==================== NUEVO: FRAME DE FILTRO POR CATEGORÍA ====================
+        # ==================== FRAME DE FILTRO POR CATEGORÍA ====================
         category_filter_frame = tk.LabelFrame(self, text="🗂️ Filtrar por Categoría", 
                                    font=('Segoe UI', 14, 'bold'), 
                                    bg=estilos.COLORS['white'])
@@ -167,52 +162,56 @@ class InventarioSimple(tk.Frame):
         self.combo_categoria_filtro.set("Todas las categorías")
         self.combo_categoria_filtro.bind('<<ComboboxSelected>>', self.filtrar_por_categoria)
         
-        # Frame de información (movido hacia abajo para dejar espacio al filtro de categoría)
+        # Frame de información
+
         info_frame = tk.LabelFrame(self, text='📋 Información del Producto', 
                                  font=('Segoe UI', 12, 'bold'), 
                                  bg=estilos.COLORS['white'])
-        info_frame.place(x=10, y=180, width=280, height=250)
-        
-        self.label1 = tk.Label(info_frame, text='Artículo: --', 
+        info_frame.place(x=10, y=180, width=280, height=290)
+
+       
+        self.label1 = tk.Label(info_frame, text='📦 Artículo: --', 
                               font=('Segoe UI', 12, 'bold'), 
                               bg=estilos.COLORS['white'], 
-                              wraplength=250, anchor='w')
-        self.label1.place(x=5, y=5)
+                              wraplength=260, justify='left', anchor='w')
+        self.label1.pack(fill='x', padx=8, pady=(8, 4))
         
-        self.label2 = tk.Label(info_frame, text='Precio: --', 
-                              font=('Segoe UI', 12, 'bold'), 
-                              bg=estilos.COLORS['white'])
-        self.label2.place(x=5, y=40)
-        
-        self.label3 = tk.Label(info_frame, text='Código: --', 
-                              font=('Segoe UI', 12, 'bold'), 
-                              bg=estilos.COLORS['white'])
-        self.label3.place(x=5, y=75)
-        
-        self.label4 = tk.Label(info_frame, text='Stock: --', 
-                              font=('Segoe UI', 12, 'bold'), 
-                              bg=estilos.COLORS['white'])
-        self.label4.place(x=5, y=110)
-        
-        self.label5 = tk.Label(info_frame, text='Estado: --', 
-                              font=('Segoe UI', 12, 'bold'), 
-                              bg=estilos.COLORS['white'])
-        self.label5.place(x=5, y=145)
-
-        # NUEVO: label de categoría en el panel de información
-        self.label6 = tk.Label(info_frame, text='Categoría: --', 
+        self.label2 = tk.Label(info_frame, text='💰 Precio: --', 
                               font=('Segoe UI', 12, 'bold'), 
                               bg=estilos.COLORS['white'],
-                              wraplength=250, anchor='w')
-        self.label6.place(x=5, y=180)
+                              anchor='w')
+        self.label2.pack(fill='x', padx=8, pady=4)
         
-        # Frame de botones con CustomTkinter (movido hacia abajo)
+        self.label3 = tk.Label(info_frame, text='🏷️ Código: --', 
+                              font=('Segoe UI', 12, 'bold'), 
+                              bg=estilos.COLORS['white'],
+                              anchor='w')
+        self.label3.pack(fill='x', padx=8, pady=4)
+        
+        self.label4 = tk.Label(info_frame, text='📊 Stock: --', 
+                              font=('Segoe UI', 12, 'bold'), 
+                              bg=estilos.COLORS['white'],
+                              anchor='w')
+        self.label4.pack(fill='x', padx=8, pady=4)
+        
+        self.label5 = tk.Label(info_frame, text='❌ Estado: --', 
+                              font=('Segoe UI', 12, 'bold'), 
+                              bg=estilos.COLORS['white'],
+                              anchor='w')
+        self.label5.pack(fill='x', padx=8, pady=4)
+
+        self.label6 = tk.Label(info_frame, text='🗂️ Categoría: --', 
+                              font=('Segoe UI', 12, 'bold'), 
+                              bg=estilos.COLORS['white'],
+                              wraplength=260, justify='left', anchor='w')
+        self.label6.pack(fill='x', padx=8, pady=(4, 8))
+        
+        # Frame de botones con CustomTkinter
         buttons_frame = tk.LabelFrame(self, text="⚙️ Opciones", 
                                     font=('Segoe UI', 14, 'bold'), 
                                     bg=estilos.COLORS['white'])
-        buttons_frame.place(x=10, y=450, width=280, height=270)
+        buttons_frame.place(x=10, y=480, width=280, height=270)
         
-        # Botones modernos
         btn1 = ctk.CTkButton(
             buttons_frame, 
             text="➕ Agregar Producto", 
@@ -257,13 +256,11 @@ class InventarioSimple(tk.Frame):
         conn = get_connection()
         if not conn:
             self.articulos = []
-            self.comboboxbuscar['values'] = []
             return
         cursor = conn.cursor()
         try:
             cursor.execute("SELECT articulo FROM articulos WHERE estado = 'activo' ORDER BY articulo")
             self.articulos = [row[0] for row in cursor.fetchall()]
-            self.comboboxbuscar['values'] = self.articulos
         except Exception as e:
             print(f"Error cargando artículos para combobox: {e}")
             self.articulos = []
@@ -271,11 +268,13 @@ class InventarioSimple(tk.Frame):
             cursor.close()
             conn.close()
 
-    # ==================== NUEVO: FILTRO POR CATEGORÍA ====================
+    # ==================== FILTRO POR CATEGORÍA ====================
     def filtrar_por_categoria(self, event=None):
-        """Se ejecuta al elegir una categoría en el combobox de filtro."""
-        texto_actual = self.comboboxbuscar.get()
-        self.cargar_articulos(filtro=texto_actual)
+        """Se ejecuta al elegir una categoría en el combobox de filtro.
+        Usa el texto de búsqueda real (lo que el usuario escribió), no lo que
+        haya quedado en el combobox tras seleccionar un producto puntual,
+        para no combinar accidentalmente 'categoría X' + 'nombre exacto de producto'."""
+        self.cargar_articulos(filtro=self.texto_busqueda_actual)
 
     def obtener_categoria_filtro_actual(self):
         """Devuelve la categoría seleccionada en el filtro, o None si es 'Todas'."""
@@ -290,7 +289,7 @@ class InventarioSimple(tk.Frame):
         """Ventana para agregar un nuevo producto (versión MySQL)"""
         top = tk.Toplevel(self)
         top.title("➕ Agregar Nuevo Producto")
-        top.geometry("950x750+200+50")      # Más alto para dar espacio
+        top.geometry("950x750+200+50")
         top.minsize(800, 650)
         top.configure(bg=estilos.COLORS['white'])
         top.resizable(True, True)
@@ -300,18 +299,15 @@ class InventarioSimple(tk.Frame):
         top.focus_set()
         top.lift()
         
-        # Título
         title_label = tk.Label(top, text="➕ Agregar Nuevo Producto", 
                               font=('Segoe UI', 16, 'bold'), 
                               bg=estilos.COLORS['white'],
                               fg=estilos.COLORS['primary'])
         title_label.pack(pady=15)
         
-        # Frame principal
         main_frame = tk.Frame(top, bg=estilos.COLORS['white'])
         main_frame.pack(fill='both', expand=True, padx=20, pady=10)
         
-        # Campos de entrada
         tk.Label(main_frame, text="Código de Barras:", 
                 font=('Segoe UI', 12, 'bold'), 
                 bg=estilos.COLORS['white']).place(x=20, y=20)
@@ -342,7 +338,6 @@ class InventarioSimple(tk.Frame):
         entry_stock = tk.Entry(main_frame, font=('Segoe UI', 12), width=30)
         entry_stock.place(x=180, y=180)
 
-        # ==================== NUEVO: CAMPO DE CATEGORÍA ====================
         tk.Label(main_frame, text="Categoría:", 
                 font=('Segoe UI', 12, 'bold'), 
                 bg=estilos.COLORS['white']).place(x=20, y=220)
@@ -351,7 +346,6 @@ class InventarioSimple(tk.Frame):
         combo_categoria.place(x=180, y=220)
         combo_categoria.set(self.CATEGORIAS[-1])  # "Otros" por defecto
         
-        # Frame para imagen
         self.frameimg = tk.Frame(main_frame, bg='lightgray', relief='solid', bd=1)
         self.frameimg.place(x=480, y=30, width=180, height=180)
         
@@ -359,7 +353,6 @@ class InventarioSimple(tk.Frame):
                                   font=('Segoe UI', 12), bg='lightgray')
         img_placeholder.pack(expand=True)
         
-        # Botón Cargar Imagen mejorado
         btn_imagen = ctk.CTkButton(
             main_frame, 
             text='📁 Cargar Imagen', 
@@ -374,16 +367,15 @@ class InventarioSimple(tk.Frame):
             border_width=1,
             border_color=estilos.COLORS['primary']
         )
-        btn_imagen.place(x=355, y=225)  # Justo debajo de la imagen
+        btn_imagen.place(x=355, y=225)
        
-        
         def guardar():
             codigo = entry_codigo.get().strip()
             articulo = entry_articulo.get().strip()
             precio_str = entry_precio.get().strip()
             costo_str = entry_costo.get().strip()
             stock_str = entry_stock.get().strip()
-            categoria = combo_categoria.get()  # NUEVO
+            categoria = combo_categoria.get()
             
             if not all([codigo, articulo, precio_str, costo_str, stock_str, categoria]):
                 messagebox.showerror("❌ Error", "Todos los campos deben ser completados")
@@ -433,9 +425,8 @@ class InventarioSimple(tk.Frame):
                 cursor.close()
                 conn.close()
         
-        # Frame para botones (más abajo para dejar espacio)
         btn_frame = tk.Frame(main_frame, bg=estilos.COLORS['white'])
-        btn_frame.place(x=50, y=340, width=400, height=60)  # Antes 320
+        btn_frame.place(x=50, y=340, width=400, height=60)
         
         btn_guardar = ctk.CTkButton(btn_frame, text='💾 Guardar Producto', 
                                    font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
@@ -499,11 +490,9 @@ class InventarioSimple(tk.Frame):
             cursor.close()
             conn.close()
 
-        # NUEVO: si el producto no tiene categoría asignada (registros antiguos), usar "Otros"
         if not categoria_actual:
             categoria_actual = "Otros"
         
-        # Ventana de edición más grande y con más espacio
         top = tk.Toplevel(self)
         top.title("✏️ Editar Producto")
         top.geometry("950x750+200+50")
@@ -524,7 +513,6 @@ class InventarioSimple(tk.Frame):
         main_frame = tk.Frame(top, bg=estilos.COLORS['white'])
         main_frame.pack(fill='both', expand=True, padx=20, pady=10)
         
-        # Campos
         tk.Label(main_frame, text="Código de Barras:", font=('Segoe UI', 12, 'bold'), bg=estilos.COLORS['white']).place(x=20, y=20)
         entry_codigo = tk.Entry(main_frame, font=('Segoe UI', 12), width=30)
         entry_codigo.place(x=180, y=20)
@@ -555,13 +543,11 @@ class InventarioSimple(tk.Frame):
         combo_estado.place(x=180, y=220)
         combo_estado.set(estado_actual)
 
-        # ==================== NUEVO: CAMPO DE CATEGORÍA ====================
         tk.Label(main_frame, text="Categoría:", font=('Segoe UI', 12, 'bold'), bg=estilos.COLORS['white']).place(x=20, y=260)
         combo_categoria = ttk.Combobox(main_frame, values=self.CATEGORIAS, font=('Segoe UI', 12), state="readonly", width=28)
         combo_categoria.place(x=180, y=260)
         combo_categoria.set(categoria_actual)
         
-        # Frame para imagen
         self.frameimg_edit = tk.Frame(main_frame, bg='lightgray', relief='solid', bd=1)
         self.frameimg_edit.place(x=480, y=30, width=180, height=180)
         
@@ -581,7 +567,6 @@ class InventarioSimple(tk.Frame):
             img_placeholder.pack(expand=True)
             self.current_image_path = imagen_actual
         
-        # Botón Cambiar Imagen (justo debajo de la imagen)
         def cambiar_imagen():
             file_path = filedialog.askopenfilename(
                 title="Seleccionar nueva imagen",
@@ -618,9 +603,8 @@ class InventarioSimple(tk.Frame):
             border_width=1,
             border_color=estilos.COLORS['primary']
         )
-        btn_imagen.place(x=365, y=225)  # Justo debajo de la imagen
+        btn_imagen.place(x=365, y=225)
         
-        # Funciones de guardar, eliminar...
         def guardar_cambios():
             codigo = entry_codigo.get().strip()
             articulo = entry_articulo.get().strip()
@@ -628,7 +612,7 @@ class InventarioSimple(tk.Frame):
             costo_str = entry_costo.get().strip()
             stock_str = entry_stock.get().strip()
             estado = combo_estado.get()
-            categoria = combo_categoria.get()  # NUEVO
+            categoria = combo_categoria.get()
             
             if not all([codigo, articulo, precio_str, costo_str, stock_str, estado, categoria]):
                 messagebox.showerror("❌ Error", "Todos los campos deben ser completados")
@@ -669,7 +653,8 @@ class InventarioSimple(tk.Frame):
                 top.destroy()
                 self.cargar_articulos()
                 self.articulos_combobox()
-                self.comboboxbuscar.set(articulo)
+                self.comboboxbuscar.delete(0, 'end')
+                self.comboboxbuscar.insert(0, articulo)
                 self.actualizar_label()
             except Exception as e:
                 print(f'Error al actualizar producto: {e}')
@@ -693,13 +678,14 @@ class InventarioSimple(tk.Frame):
                     top.destroy()
                     self.cargar_articulos()
                     self.articulos_combobox()
-                    self.comboboxbuscar.set("")
+                    self.comboboxbuscar.delete(0, 'end')
+                    self.texto_busqueda_actual = ""
                     self.label1.config(text="📦 Artículo: --")
                     self.label2.config(text="💰 Precio: --")
                     self.label3.config(text="🏷️ Código: --")
                     self.label4.config(text="📊 Stock: --")
                     self.label5.config(text="❌ Estado: --")
-                    self.label6.config(text="🗂️ Categoría: --")  # NUEVO
+                    self.label6.config(text="🗂️ Categoría: --")
                 except Exception as e:
                     print(f'Error al eliminar producto: {e}')
                     messagebox.showerror("❌ Error", f"Error al eliminar producto: {e}")
@@ -707,9 +693,8 @@ class InventarioSimple(tk.Frame):
                     cursor.close()
                     conn.close()
         
-        # Frame para botones (más abajo, para dejar espacio al campo de categoría)
         btn_frame = tk.Frame(main_frame, bg=estilos.COLORS['white'])
-        btn_frame.place(x=20, y=380, width=640, height=60)  # Antes y=340
+        btn_frame.place(x=20, y=380, width=640, height=60)
         
         btn_guardar = ctk.CTkButton(btn_frame, text='💾 Guardar Cambios', 
                                    font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
@@ -730,7 +715,6 @@ class InventarioSimple(tk.Frame):
         btn_cancelar.pack(side='right', padx=10, pady=10)
     
     def imprimir_etiqueta(self):
-        # (Misma función que antes, sin cambios)
         producto_seleccionado = self.comboboxbuscar.get().strip()
         if not producto_seleccionado:
             messagebox.showerror("❌ Error", "Selecciona un producto para imprimir su etiqueta")
@@ -994,7 +978,6 @@ class InventarioSimple(tk.Frame):
             return
         cursor = conn.cursor()
         try:
-            # NUEVO: se agrega categoria al SELECT y se combina el filtro de texto con el de categoría
             query = "SELECT codigo, articulo, precio, image_path, categoria FROM articulos WHERE estado = 'activo'"
             params = []
             if filtro:
@@ -1049,7 +1032,6 @@ class InventarioSimple(tk.Frame):
         precio_label = tk.Label(article_frame, text=f'💰 {precio_formateado}', bg='white', anchor='w', font=('Segoe UI', 10, 'bold'), fg=estilos.COLORS['success'])
         precio_label.pack(side="top", fill='x', padx=8)
 
-        # NUEVO: badge de categoría
         if categoria:
             categoria_label = tk.Label(article_frame, text=f'🗂️ {categoria}', bg='white', anchor='w', 
                                       font=('Segoe UI', 9), fg=estilos.COLORS['primary'])
@@ -1064,11 +1046,12 @@ class InventarioSimple(tk.Frame):
             self.row += 1
     
     def seleccionar_producto(self, articulo):
-        self.comboboxbuscar.set(articulo)
-        self.actualizar_label()
+       self.comboboxbuscar.delete(0, 'end')
+       self.comboboxbuscar.insert(0, articulo)
+       self.texto_busqueda_actual = ""
+       self.actualizar_label()
     
-    def on_combobox_select(self, event):
-        self.actualizar_label()
+ 
         
     def actualizar_label(self, event=None):
         articulo_seleccionado = self.comboboxbuscar.get()
@@ -1092,7 +1075,6 @@ class InventarioSimple(tk.Frame):
                     self.label5.config(text=f'✅ Estado: {estado}', fg=estilos.COLORS['success'])
                 else:
                     self.label5.config(text=f'❌ Estado: {estado}', fg=estilos.COLORS['danger'])
-                # NUEVO: mostrar categoría
                 self.label6.config(text=f'🗂️ Categoría: {categoria or "Sin categoría"}')
             else:
                 self.label1.config(text="📦 Artículo: No encontrado")
@@ -1115,15 +1097,6 @@ class InventarioSimple(tk.Frame):
         self.timer_articulos.start()
     
     def _filter_articulos(self):
-        typed = self.comboboxbuscar.get()
-        if typed == '':
-            data = self.articulos
-        else:
-            data = [item for item in self.articulos if typed.lower() in item.lower()]
-        if data:
-            self.comboboxbuscar['values'] = data
-            self.comboboxbuscar.event_generate('<Down>')
-        else:
-            self.comboboxbuscar['values'] = ['No se encontraron resultados']
-            self.comboboxbuscar.event_generate('<Down>')
+        typed = self.comboboxbuscar.get().strip()
+        self.texto_busqueda_actual = typed
         self.cargar_articulos(filtro=typed)
