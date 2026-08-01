@@ -5,8 +5,13 @@ import pickle
 from data.models import get_connection
 import mysql.connector
 
-# Umbral de tolerancia muy estricto
+# Umbral de tolerancia muy estricto (login)
 TOLERANCIA_FACIAL = 0.4
+
+# Umbral para detectar que un rostro YA existe en la BD al registrar
+# (algo más permisivo que el de login para evitar falsos negativos de duplicado)
+TOLERANCIA_DUPLICADO = 0.45
+
 
 class FaceAuthenticator:
     def __init__(self):
@@ -16,6 +21,11 @@ class FaceAuthenticator:
         self.cargar_encodings()
 
     def cargar_encodings(self):
+        # Reiniciar listas para evitar acumular duplicados si se llama más de una vez
+        self.encodings = []
+        self.usernames = []
+        self.user_ids = []
+
         conn = get_connection()
         if not conn:
             return
@@ -50,7 +60,6 @@ class FaceAuthenticator:
         if tolerance is None:
             tolerance = TOLERANCIA_FACIAL
 
-        # Redimensionar para acelerar
         small_frame = cv2.resize(frame_bgr, (0, 0), fx=0.25, fy=0.25)
         rgb_small = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
 
@@ -65,7 +74,6 @@ class FaceAuthenticator:
             print("⚠️ No hay encodings en la base de datos")
             return None, None
 
-        # Comparar cada encoding detectado con la base de datos
         for i, face_encoding in enumerate(face_encodings):
             distances = fr.face_distance(self.encodings, face_encoding)
             min_dist = np.min(distances)
@@ -82,12 +90,36 @@ class FaceAuthenticator:
         print("❌ Ningún rostro superó el umbral de tolerancia")
         return None, None
 
+    def rostro_ya_existe(self, encoding, usuario_id_excluir=None):
+        """
+        Verifica si un encoding ya corresponde a un rostro guardado en la BD,
+        sin importar a qué usuario/username esté asociado.
+        Retorna (True, username_existente) si es un duplicado, (False, None) si no.
+        """
+        if not self.encodings:
+            return False, None
+
+        distances = fr.face_distance(self.encodings, encoding)
+        min_dist = np.min(distances)
+        best_idx = np.argmin(distances)
+
+        print(f"🔎 Verificando duplicado -> distancia mínima: {min_dist:.4f} (usuario existente: {self.usernames[best_idx]})")
+
+        if min_dist < TOLERANCIA_DUPLICADO:
+            if usuario_id_excluir is not None and self.user_ids[best_idx] == usuario_id_excluir:
+                return False, None
+            return True, self.usernames[best_idx]
+
+        return False, None
+
     def registrar_rostro_con_bbox(self, usuario_id, frame_bgr, bbox):
         """
         Registra un rostro usando una posición (bbox) ya detectada por MediaPipe.
-        Ahora usa cursor preparado para evitar el error "Invalid utf8mb4 character string".
+        Ahora valida que el rostro no esté ya registrado con otro usuario
+        antes de guardarlo, y usa cursor preparado para evitar el error
+        "Invalid utf8mb4 character string".
         """
-        print("🔧 [registrar_rostro_con_bbox v4 - con cursor preparado] ejecutando...")
+        print("🔧 [registrar_rostro_con_bbox v5 - con validación de duplicados] ejecutando...")
 
         if frame_bgr is None:
             return False, "Imagen vacía (frame es None)"
@@ -115,7 +147,6 @@ class FaceAuthenticator:
         # ---- Calcular encoding ----
         frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
 
-        # Intento 1: usar known_face_locations
         encoding = None
         ubicacion = [(top, right, bottom, left)]
         try:
@@ -126,7 +157,6 @@ class FaceAuthenticator:
         except Exception as e:
             print(f"    ⚠️ Intento 1 falló: {e}")
 
-        # Intento 2: recorte con margen
         if encoding is None:
             margen_y = int((bottom - top) * 0.3)
             margen_x = int((right - left) * 0.3)
@@ -158,6 +188,16 @@ class FaceAuthenticator:
             encoding = encodings[0]
             print("    ✅ Intento 2 (recorte + detección) funcionó")
 
+        # ---- VALIDACIÓN DE DUPLICADOS ----
+        # Recargar encodings desde la BD para asegurar datos frescos antes de comparar
+        self.cargar_encodings()
+
+        ya_existe, username_existente = self.rostro_ya_existe(encoding, usuario_id_excluir=usuario_id)
+        if ya_existe:
+            print(f"🚫 Rostro duplicado detectado: ya pertenece a '{username_existente}'")
+            return False, (f"Este rostro ya está registrado con el usuario '{username_existente}'. "
+                            f"No se puede registrar la misma persona con un nombre distinto.")
+
         # ---- Preparar datos para guardar ----
         encoding_bytes = pickle.dumps(encoding)
         face_img = frame_bgr[top:bottom, left:right]
@@ -173,7 +213,6 @@ class FaceAuthenticator:
 
         cursor = conn.cursor(prepared=True)
         try:
-            # Eliminar rostro anterior si existe
             cursor.execute("SELECT id FROM rostros WHERE usuario_id = %s", (usuario_id,))
             if cursor.fetchone():
                 cursor.execute("DELETE FROM rostros WHERE usuario_id = %s", (usuario_id,))

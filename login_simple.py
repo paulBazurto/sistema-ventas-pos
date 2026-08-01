@@ -23,10 +23,10 @@ FaceMesh = FacemeshObject.FaceMesh(max_num_faces=1)
 detector = FaceObject.FaceDetection(min_detection_confidence=0.5, model_selection=1)
 ConfigDraw = mp_drawing.DrawingSpec(thickness=1, circle_radius=1)
 
-# Variables globales (ya no usamos conteo_parpadeos ni step en login)
+# Variables globales
 parpadeo = False
 conteo = 0
-step = 0          # Se mantiene pero ya no se usa en login
+step = 0
 conteo_parpadeos = 0
 current_username = None
 cap = None
@@ -97,6 +97,11 @@ def obtener_encodings_faciales():
         conn.close()
 
 def crear_usuario_y_rostro(username, password, frame_bgr, bbox=None):
+    """
+    Crea el usuario únicamente si el rostro no está ya registrado con otro
+    usuario. Si el rostro es duplicado, no se crea el usuario y se retorna
+    el mensaje de error correspondiente.
+    """
     from modulos.biometrico.face_auth import FaceAuthenticator
 
     if frame_bgr is not None and isinstance(frame_bgr, np.ndarray):
@@ -127,13 +132,28 @@ def crear_usuario_y_rostro(username, password, frame_bgr, bbox=None):
         if cursor.fetchone():
             return False, "El nombre de usuario ya existe"
 
+        # ---- Verificar duplicado de rostro ANTES de crear el usuario ----
+        auth = FaceAuthenticator()
+        if bbox is not None:
+            frame_rgb_check = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+            yi, yf, xi, xf = bbox
+            try:
+                encodings_check = fr.face_encodings(frame_rgb_check, known_face_locations=[(yi, xf, yf, xi)])
+            except Exception:
+                encodings_check = []
+            if encodings_check:
+                ya_existe, username_existente = auth.rostro_ya_existe(encodings_check[0])
+                if ya_existe:
+                    return False, (f"Este rostro ya está registrado con el usuario "
+                                    f"'{username_existente}'. No se puede registrar la misma "
+                                    f"persona con un nombre distinto.")
+
         password_hash = hashlib.sha256(password.encode()).hexdigest()
         cursor.execute("INSERT INTO usuarios (username, password) VALUES (%s, %s)",
                        (username, password_hash))
         usuario_id = cursor.lastrowid
         conn.commit()
 
-        auth = FaceAuthenticator()
         if bbox is not None:
             exito, mensaje = auth.registrar_rostro_con_bbox(usuario_id, frame_bgr, bbox)
         else:
@@ -207,13 +227,11 @@ def login_con_rostro(root, ventana_principal, callback_exito):
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        # Dibujar malla facial (solo visual, no afecta liveness)
         res = FaceMesh.process(frame_rgb)
         if res.multi_face_landmarks:
             for rostros in res.multi_face_landmarks:
                 mp_drawing.draw_landmarks(frame, rostros, FacemeshObject.FACEMESH_TESSELATION, ConfigDraw, ConfigDraw)
 
-        # ---- RECONOCIMIENTO FACIAL DIRECTO (sin parpadeos) ----
         frame_fr = cv2.resize(frame_copy, (0,0), None, 0.25, 0.25)
         rgb_fr = cv2.cvtColor(frame_fr, cv2.COLOR_BGR2RGB)
         faces_locs = fr.face_locations(rgb_fr)
@@ -249,7 +267,6 @@ def login_con_rostro(root, ventana_principal, callback_exito):
                                                 "Asegúrese de estar registrado y de que la cámara enfoca correctamente.")
                             return
 
-        # Mostrar el frame procesado
         frame = cv2.resize(frame, (1280, 720))
         im = Image.fromarray(frame)
         img_tk = ImageTk.PhotoImage(im)
@@ -451,7 +468,7 @@ def capturar_rostro_para_registro(root, username, password):
                                                 if exito:
                                                     messagebox.showinfo("✅ Éxito", mensaje)
                                                 else:
-                                                    messagebox.showerror("❌ Error", mensaje)
+                                                    messagebox.showerror("❌ Rostro duplicado", mensaje)
                                                 return
                                     else:
                                         conteo = 0
