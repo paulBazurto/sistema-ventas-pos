@@ -32,10 +32,27 @@ ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue")
 
 class InventarioSimple(tk.Frame):
+
+    # ==================== NUEVO: CATEGORÍAS DISPONIBLES ====================
+    CATEGORIAS = [
+        "Alimentos y Bebidas",
+        "Cuidado Personal e Higiene",
+        "Limpieza y Aseo del Hogar",
+        "Textil y Vestimenta",
+        "Electrónica y Tecnología",
+        "Ferretería y Herramientas",
+        "Papelería y Oficina",
+        "Mascotas",
+        "Farmacia y Salud",
+        "Juguetería y Entretenimiento",
+        "Hogar y Decoración",
+        "Otros"
+    ]
     
     def __init__(self, padre):
         super().__init__(padre)
         self.configure(bg=estilos.COLORS['bg_primary'])
+        self.asegurar_columna_categoria()  # NUEVO: garantiza que la columna exista en la BD
         self.widgets()
         self.articulos_combobox()
         self.cargar_articulos()
@@ -53,6 +70,26 @@ class InventarioSimple(tk.Frame):
             print(f"Módulo Inventario actualizado a moneda: {nueva_moneda}")
         except Exception as e:
             print(f"Error al actualizar moneda en Inventario: {e}")
+
+    # ==================== NUEVO: MIGRACIÓN DE COLUMNA CATEGORÍA ====================
+    def asegurar_columna_categoria(self):
+        """Agrega la columna 'categoria' a la tabla articulos si todavía no existe."""
+        conn = get_connection()
+        if not conn:
+            return
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "ALTER TABLE articulos ADD COLUMN categoria VARCHAR(100) NOT NULL DEFAULT 'Otros'"
+            )
+            conn.commit()
+            print("✅ Columna 'categoria' creada en articulos")
+        except Exception:
+            # La columna ya existe (o el motor no soporta IF NOT EXISTS) -> se ignora
+            pass
+        finally:
+            cursor.close()
+            conn.close()
         
     def widgets(self):
         # Frame principal de artículos (ancho optimizado para 4 columnas)
@@ -113,12 +150,28 @@ class InventarioSimple(tk.Frame):
         self.comboboxbuscar.place(x=5, y=5, width=260, height=40)
         self.comboboxbuscar.bind('<<ComboboxSelected>>', self.on_combobox_select)
         self.comboboxbuscar.bind('<KeyRelease>', self.filtrar_articulos)
+
+        # ==================== NUEVO: FRAME DE FILTRO POR CATEGORÍA ====================
+        category_filter_frame = tk.LabelFrame(self, text="🗂️ Filtrar por Categoría", 
+                                   font=('Segoe UI', 14, 'bold'), 
+                                   bg=estilos.COLORS['white'])
+        category_filter_frame.place(x=5, y=95, width=280, height=80)
+
+        self.combo_categoria_filtro = ttk.Combobox(
+            category_filter_frame, 
+            font=('Segoe UI', 11), 
+            state="readonly",
+            values=["Todas las categorías"] + self.CATEGORIAS
+        )
+        self.combo_categoria_filtro.place(x=5, y=5, width=260, height=40)
+        self.combo_categoria_filtro.set("Todas las categorías")
+        self.combo_categoria_filtro.bind('<<ComboboxSelected>>', self.filtrar_por_categoria)
         
-        # Frame de información
+        # Frame de información (movido hacia abajo para dejar espacio al filtro de categoría)
         info_frame = tk.LabelFrame(self, text='📋 Información del Producto', 
                                  font=('Segoe UI', 12, 'bold'), 
                                  bg=estilos.COLORS['white'])
-        info_frame.place(x=10, y=95, width=280, height=240)
+        info_frame.place(x=10, y=180, width=280, height=250)
         
         self.label1 = tk.Label(info_frame, text='Artículo: --', 
                               font=('Segoe UI', 12, 'bold'), 
@@ -145,12 +198,19 @@ class InventarioSimple(tk.Frame):
                               font=('Segoe UI', 12, 'bold'), 
                               bg=estilos.COLORS['white'])
         self.label5.place(x=5, y=145)
+
+        # NUEVO: label de categoría en el panel de información
+        self.label6 = tk.Label(info_frame, text='Categoría: --', 
+                              font=('Segoe UI', 12, 'bold'), 
+                              bg=estilos.COLORS['white'],
+                              wraplength=250, anchor='w')
+        self.label6.place(x=5, y=180)
         
-        # Frame de botones con CustomTkinter
+        # Frame de botones con CustomTkinter (movido hacia abajo)
         buttons_frame = tk.LabelFrame(self, text="⚙️ Opciones", 
                                     font=('Segoe UI', 14, 'bold'), 
                                     bg=estilos.COLORS['white'])
-        buttons_frame.place(x=10, y=350, width=280, height=250)
+        buttons_frame.place(x=10, y=450, width=280, height=270)
         
         # Botones modernos
         btn1 = ctk.CTkButton(
@@ -210,6 +270,21 @@ class InventarioSimple(tk.Frame):
         finally:
             cursor.close()
             conn.close()
+
+    # ==================== NUEVO: FILTRO POR CATEGORÍA ====================
+    def filtrar_por_categoria(self, event=None):
+        """Se ejecuta al elegir una categoría en el combobox de filtro."""
+        texto_actual = self.comboboxbuscar.get()
+        self.cargar_articulos(filtro=texto_actual)
+
+    def obtener_categoria_filtro_actual(self):
+        """Devuelve la categoría seleccionada en el filtro, o None si es 'Todas'."""
+        if not hasattr(self, 'combo_categoria_filtro'):
+            return None
+        seleccion = self.combo_categoria_filtro.get()
+        if not seleccion or seleccion == "Todas las categorías":
+            return None
+        return seleccion
     
     def agregar_articulo(self):
         """Ventana para agregar un nuevo producto (versión MySQL)"""
@@ -266,6 +341,15 @@ class InventarioSimple(tk.Frame):
                 bg=estilos.COLORS['white']).place(x=20, y=180)
         entry_stock = tk.Entry(main_frame, font=('Segoe UI', 12), width=30)
         entry_stock.place(x=180, y=180)
+
+        # ==================== NUEVO: CAMPO DE CATEGORÍA ====================
+        tk.Label(main_frame, text="Categoría:", 
+                font=('Segoe UI', 12, 'bold'), 
+                bg=estilos.COLORS['white']).place(x=20, y=220)
+        combo_categoria = ttk.Combobox(main_frame, values=self.CATEGORIAS, 
+                                      font=('Segoe UI', 12), state="readonly", width=28)
+        combo_categoria.place(x=180, y=220)
+        combo_categoria.set(self.CATEGORIAS[-1])  # "Otros" por defecto
         
         # Frame para imagen
         self.frameimg = tk.Frame(main_frame, bg='lightgray', relief='solid', bd=1)
@@ -299,8 +383,9 @@ class InventarioSimple(tk.Frame):
             precio_str = entry_precio.get().strip()
             costo_str = entry_costo.get().strip()
             stock_str = entry_stock.get().strip()
+            categoria = combo_categoria.get()  # NUEVO
             
-            if not all([codigo, articulo, precio_str, costo_str, stock_str]):
+            if not all([codigo, articulo, precio_str, costo_str, stock_str, categoria]):
                 messagebox.showerror("❌ Error", "Todos los campos deben ser completados")
                 return
             
@@ -333,9 +418,9 @@ class InventarioSimple(tk.Frame):
             
             try:
                 cursor.execute("""INSERT INTO articulos 
-                               (codigo, articulo, precio, costo, stock, estado, image_path) 
-                               VALUES (%s, %s, %s, %s, %s, 'activo', %s)""", 
-                               (codigo, articulo, precio_float, costo_float, stock_int, imagen_path))
+                               (codigo, articulo, precio, costo, stock, estado, image_path, categoria) 
+                               VALUES (%s, %s, %s, %s, %s, 'activo', %s, %s)""", 
+                               (codigo, articulo, precio_float, costo_float, stock_int, imagen_path, categoria))
                 conn.commit()
                 messagebox.showinfo('✅ Éxito', f'Producto "{articulo}" agregado correctamente')
                 top.destroy()
@@ -399,19 +484,24 @@ class InventarioSimple(tk.Frame):
             return
         cursor = conn.cursor()
         try:
-            cursor.execute("""SELECT codigo, articulo, precio, costo, stock, estado, image_path 
+            cursor.execute("""SELECT codigo, articulo, precio, costo, stock, estado, image_path, categoria 
                               FROM articulos WHERE articulo = %s""", (producto_seleccionado,))
             resultado = cursor.fetchone()
             if not resultado:
                 messagebox.showerror("❌ Error", "Producto no encontrado")
                 return
-            codigo_actual, articulo_actual, precio_actual, costo_actual, stock_actual, estado_actual, imagen_actual = resultado
+            (codigo_actual, articulo_actual, precio_actual, costo_actual, 
+             stock_actual, estado_actual, imagen_actual, categoria_actual) = resultado
         except Exception as e:
             messagebox.showerror("❌ Error", f"Error al obtener datos del producto: {e}")
             return
         finally:
             cursor.close()
             conn.close()
+
+        # NUEVO: si el producto no tiene categoría asignada (registros antiguos), usar "Otros"
+        if not categoria_actual:
+            categoria_actual = "Otros"
         
         # Ventana de edición más grande y con más espacio
         top = tk.Toplevel(self)
@@ -464,6 +554,12 @@ class InventarioSimple(tk.Frame):
         combo_estado = ttk.Combobox(main_frame, values=["activo", "inactivo"], font=('Segoe UI', 12), state="readonly", width=28)
         combo_estado.place(x=180, y=220)
         combo_estado.set(estado_actual)
+
+        # ==================== NUEVO: CAMPO DE CATEGORÍA ====================
+        tk.Label(main_frame, text="Categoría:", font=('Segoe UI', 12, 'bold'), bg=estilos.COLORS['white']).place(x=20, y=260)
+        combo_categoria = ttk.Combobox(main_frame, values=self.CATEGORIAS, font=('Segoe UI', 12), state="readonly", width=28)
+        combo_categoria.place(x=180, y=260)
+        combo_categoria.set(categoria_actual)
         
         # Frame para imagen
         self.frameimg_edit = tk.Frame(main_frame, bg='lightgray', relief='solid', bd=1)
@@ -532,8 +628,9 @@ class InventarioSimple(tk.Frame):
             costo_str = entry_costo.get().strip()
             stock_str = entry_stock.get().strip()
             estado = combo_estado.get()
+            categoria = combo_categoria.get()  # NUEVO
             
-            if not all([codigo, articulo, precio_str, costo_str, stock_str, estado]):
+            if not all([codigo, articulo, precio_str, costo_str, stock_str, estado, categoria]):
                 messagebox.showerror("❌ Error", "Todos los campos deben ser completados")
                 return
             try:
@@ -562,9 +659,11 @@ class InventarioSimple(tk.Frame):
                         return
                 imagen_path = getattr(self, 'current_image_path', imagen_actual)
                 cursor.execute("""UPDATE articulos 
-                               SET codigo = %s, articulo = %s, precio = %s, costo = %s, stock = %s, estado = %s, image_path = %s
+                               SET codigo = %s, articulo = %s, precio = %s, costo = %s, stock = %s, 
+                                   estado = %s, image_path = %s, categoria = %s
                                WHERE articulo = %s""", 
-                               (codigo, articulo, precio_float, costo_float, stock_int, estado, imagen_path, producto_seleccionado))
+                               (codigo, articulo, precio_float, costo_float, stock_int, estado, 
+                                imagen_path, categoria, producto_seleccionado))
                 conn.commit()
                 messagebox.showinfo('✅ Éxito', f'Producto "{articulo}" actualizado correctamente')
                 top.destroy()
@@ -600,6 +699,7 @@ class InventarioSimple(tk.Frame):
                     self.label3.config(text="🏷️ Código: --")
                     self.label4.config(text="📊 Stock: --")
                     self.label5.config(text="❌ Estado: --")
+                    self.label6.config(text="🗂️ Categoría: --")  # NUEVO
                 except Exception as e:
                     print(f'Error al eliminar producto: {e}')
                     messagebox.showerror("❌ Error", f"Error al eliminar producto: {e}")
@@ -607,9 +707,9 @@ class InventarioSimple(tk.Frame):
                     cursor.close()
                     conn.close()
         
-        # Frame para botones (más abajo)
+        # Frame para botones (más abajo, para dejar espacio al campo de categoría)
         btn_frame = tk.Frame(main_frame, bg=estilos.COLORS['white'])
-        btn_frame.place(x=20, y=340, width=640, height=60)  # Antes y=320
+        btn_frame.place(x=20, y=380, width=640, height=60)  # Antes y=340
         
         btn_guardar = ctk.CTkButton(btn_frame, text='💾 Guardar Cambios', 
                                    font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
@@ -894,18 +994,23 @@ class InventarioSimple(tk.Frame):
             return
         cursor = conn.cursor()
         try:
-            query = "SELECT codigo, articulo, precio, image_path FROM articulos WHERE estado = 'activo'"
+            # NUEVO: se agrega categoria al SELECT y se combina el filtro de texto con el de categoría
+            query = "SELECT codigo, articulo, precio, image_path, categoria FROM articulos WHERE estado = 'activo'"
             params = []
             if filtro:
                 query += " AND articulo LIKE %s"
                 params.append(f'%{filtro}%')
+            categoria_filtro = self.obtener_categoria_filtro_actual()
+            if categoria_filtro:
+                query += " AND categoria = %s"
+                params.append(categoria_filtro)
             query += " ORDER BY articulo"
             cursor.execute(query, params)
             articulos = cursor.fetchall()
             self.row = 0
             self.column = 0
-            for codigo, articulo, precio, image_path in articulos:
-                self.mostrar_articulo(codigo, articulo, precio, image_path)
+            for codigo, articulo, precio, image_path, categoria in articulos:
+                self.mostrar_articulo(codigo, articulo, precio, image_path, categoria)
         except Exception as e:
             print(f"Error cargando artículos: {e}")
             error_label = tk.Label(self.scrollable_frame, text=f"❌ Error cargando productos: {e}", font=('Segoe UI', 12, 'bold'), fg='red', bg=estilos.COLORS['white'])
@@ -914,8 +1019,8 @@ class InventarioSimple(tk.Frame):
             cursor.close()
             conn.close()
     
-    def mostrar_articulo(self, codigo, articulo, precio, image_path):
-        article_frame = tk.Frame(self.scrollable_frame, bg='white', relief='solid', bd=1, width=250, height=280)
+    def mostrar_articulo(self, codigo, articulo, precio, image_path, categoria=None):
+        article_frame = tk.Frame(self.scrollable_frame, bg='white', relief='solid', bd=1, width=250, height=300)
         article_frame.grid(row=self.row, column=self.column, padx=15, pady=15, sticky="nsew")
         article_frame.grid_propagate(False)
         
@@ -943,6 +1048,12 @@ class InventarioSimple(tk.Frame):
         precio_formateado = f"${precio:.2f} USD"
         precio_label = tk.Label(article_frame, text=f'💰 {precio_formateado}', bg='white', anchor='w', font=('Segoe UI', 10, 'bold'), fg=estilos.COLORS['success'])
         precio_label.pack(side="top", fill='x', padx=8)
+
+        # NUEVO: badge de categoría
+        if categoria:
+            categoria_label = tk.Label(article_frame, text=f'🗂️ {categoria}', bg='white', anchor='w', 
+                                      font=('Segoe UI', 9), fg=estilos.COLORS['primary'])
+            categoria_label.pack(side="top", fill='x', padx=8)
         
         codigo_label = tk.Label(article_frame, text=f'🏷️ {codigo}', bg='white', anchor='w', font=('Segoe UI', 9), fg=estilos.COLORS['secondary'])
         codigo_label.pack(side="bottom", fill='x', padx=8, pady=3)
@@ -968,11 +1079,11 @@ class InventarioSimple(tk.Frame):
             return
         cursor = conn.cursor()
         try:
-            cursor.execute("""SELECT codigo, articulo, precio, costo, stock, estado 
+            cursor.execute("""SELECT codigo, articulo, precio, costo, stock, estado, categoria 
                               FROM articulos WHERE articulo = %s""", (articulo_seleccionado,))
             resultado = cursor.fetchone()
             if resultado:
-                codigo, articulo, precio, costo, stock, estado = resultado
+                codigo, articulo, precio, costo, stock, estado, categoria = resultado
                 self.label1.config(text=f'📦 Artículo: {articulo}')
                 self.label2.config(text=f'💰 Precio: ${precio:.2f} USD')
                 self.label3.config(text=f'🏷️ Código: {codigo}')
@@ -981,12 +1092,15 @@ class InventarioSimple(tk.Frame):
                     self.label5.config(text=f'✅ Estado: {estado}', fg=estilos.COLORS['success'])
                 else:
                     self.label5.config(text=f'❌ Estado: {estado}', fg=estilos.COLORS['danger'])
+                # NUEVO: mostrar categoría
+                self.label6.config(text=f'🗂️ Categoría: {categoria or "Sin categoría"}')
             else:
                 self.label1.config(text="📦 Artículo: No encontrado")
                 self.label2.config(text="💰 Precio: --")
                 self.label3.config(text="🏷️ Código: --")
                 self.label4.config(text="📊 Stock: --")
                 self.label5.config(text="❌ Estado: --")
+                self.label6.config(text="🗂️ Categoría: --")
         except Exception as e:
             print("Error al obtener datos del artículo:", e)
             messagebox.showerror("❌ Error", "Error al obtener los datos del artículo")
