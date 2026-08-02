@@ -207,6 +207,7 @@ class ClientesModerno(tk.Frame):
             self.limpiar_treeview()
             self.limpiar_campos()
             self.cargar_registros()
+            self._actualizar_ventas_clientes()   # <--- NUEVO: actualiza el Combobox de ventas
         except Exception as e:
             messagebox.showerror("❌ Error", f"No se pudo registrar el cliente: {e}")
         finally:
@@ -359,6 +360,7 @@ class ClientesModerno(tk.Frame):
                 conn.commit()
                 messagebox.showinfo("✅ Éxito", "Cliente modificado correctamente")
                 self.cargar_registros()
+                self._actualizar_ventas_clientes()   # <--- NUEVO
                 top_modificar.destroy()
             except Exception as e:
                 messagebox.showerror("❌ Error", f"No se pudo modificar el cliente: {e}")
@@ -380,6 +382,7 @@ class ClientesModerno(tk.Frame):
                     self.limpiar_treeview()
                     self.limpiar_campos()
                     self.cargar_registros()
+                    self._actualizar_ventas_clientes()   # <--- NUEVO
                     top_modificar.destroy()
                 except Exception as e:
                     messagebox.showerror("❌ Error", f"No se pudo eliminar el cliente: {e}")
@@ -387,8 +390,7 @@ class ClientesModerno(tk.Frame):
                     cursor.close()
                     conn.close()
 
-        # Antes: btn_frame.place(x=20, y=440, width=400, height=80)  <- muy angosto, Cancelar se cortaba
-        # Ahora: ancho suficiente (410px de botones + margen) y centrado en main_frame
+        # Botones
         btn_frame = tk.Frame(main_frame, bg=estilos.COLORS['white'])
         btn_frame.place(relx=0.5, y=440, width=430, height=80, anchor='n')
 
@@ -412,3 +414,21 @@ class ClientesModerno(tk.Frame):
                                     fg_color=estilos.COLORS['secondary'],
                                     hover_color="#6c757d")
         btn_cancelar.pack(side='left', padx=4, pady=10)
+
+    # ==================== NUEVO MÉTODO PARA ACTUALIZAR VENTAS ====================
+    def _actualizar_ventas_clientes(self):
+        """Busca la instancia de VentasModerna en el árbol de widgets y actualiza su lista de clientes."""
+        def buscar_ventas(widget):
+            # Buscar por nombre de clase (evita dependencia circular)
+            if widget.__class__.__name__ == 'VentasModerna':
+                return widget
+            for child in widget.winfo_children():
+                result = buscar_ventas(child)
+                if result:
+                    return result
+            return None
+
+        ventanas = buscar_ventas(self.master)
+        if ventanas and hasattr(ventanas, 'cargar_clientes'):
+            ventanas.cargar_clientes()
+            print("✅ Clientes actualizados en el módulo de ventas.")

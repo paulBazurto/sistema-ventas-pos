@@ -330,6 +330,11 @@ class VentasModerna(tk.Frame):
             cursor.close()
             conn.close()
 
+    # (Opcional) Método para recargar clientes desde fuera
+    def recargar_clientes(self):
+        """Recarga la lista de clientes y actualiza el Combobox (puede ser llamado desde otro módulo)."""
+        self.cargar_clientes()
+
     # ==================== FILTROS Y BÚSQUEDAS ====================
     def filtrar_clientes(self, event):
         if self.timer_cliente:
